@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>냥냥 테트리스</title>
+<style>
+  :root {
+    --bg: #fff4ea;
+    --panel: #ffffff;
+    --ink: #4a3428;
+    --muted: #9b7e6c;
+    --accent: #ff8fab;
+    --board: #fde8d7;
+    --grid: #f6d5bf;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 16px; touch-action: manipulation; user-select: none;
+  }
+  h1 { margin: 4px 0 12px; font-size: 28px; letter-spacing: 1px; }
+  h1 span { color: var(--accent); }
+  .game { display: flex; gap: 16px; align-items: flex-start; }
+  .board-wrap { position: relative; }
+  canvas#board {
+    background: var(--board); border-radius: 14px;
+    box-shadow: 0 6px 0 #e8c9b2, 0 10px 24px rgba(74,52,40,.15);
+    display: block; max-height: calc(100vh - 200px); width: auto;
+  }
+  .side { display: flex; flex-direction: column; gap: 12px; width: 140px; }
+  .card {
+    background: var(--panel); border-radius: 14px; padding: 10px 12px;
+    box-shadow: 0 4px 0 #ecd3c0;
+  }
+  .card h3 { margin: 0 0 6px; font-size: 13px; color: var(--muted); font-weight: 600; }
+  .card .val { font-size: 22px; font-weight: 800; }
+  canvas.mini { display: block; margin: 0 auto; }
+  .help { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .overlay {
+    position: absolute; inset: 0; border-radius: 14px;
+    background: rgba(255,244,234,.88);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: 10px; padding: 20px;
+  }
+  .overlay.hidden { display: none; }
+  .overlay .big { font-size: 56px; line-height: 1; }
+  .overlay h2 { margin: 0; font-size: 24px; }
+  .overlay p { margin: 0; color: var(--muted); }
+  button {
+    font: inherit; font-weight: 700; border: 0; cursor: pointer;
+    background: var(--accent); color: #fff; padding: 10px 22px; border-radius: 999px;
+    box-shadow: 0 4px 0 #e06b8b;
+  }
+  button:active { transform: translateY(2px); box-shadow: 0 2px 0 #e06b8b; }
+  .pad { display: none; margin-top: 14px; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 360px; }
+  .pad button { width: 64px; height: 56px; padding: 0; font-size: 22px; background: #c9a48c; box-shadow: 0 4px 0 #a5816a; }
+  .pad button.wide { width: 96px; font-size: 15px; }
+  @media (max-width: 600px), (pointer: coarse) {
+    .pad { display: flex; }
+    .game { gap: 10px; }
+    .side { width: 96px; }
+    .card .val { font-size: 18px; }
+    .help { display: none; }
+    canvas#board { max-height: calc(100vh - 230px); }
+  }
+</style>
+</head>
+<body>
+  <h1>🐾 냥냥 <span>테트리스</span></h1>
+  <div class="game">
+    <div class="board-wrap">
+      <canvas id="board" width="300" height="600"></canvas>
+      <div class="overlay" id="overlay">
+        <div class="big">🐱</div>
+        <h2 id="ovTitle">냥냥 테트리스</h2>
+        <p id="ovText">고양이를 쌓아서 줄을 없애라냥!</p>
+        <button id="startBtn">시작하기</button>
+      </div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>다음 고양이</h3><canvas class="mini" id="next" width="96" height="72"></canvas></div>
+      <div class="card"><h3>보관 (C)</h3><canvas class="mini" id="hold" width="96" height="72"></canvas></div>
+      <div class="card"><h3>점수</h3><div class="val" id="score">0</div></div>
+      <div class="card"><h3>줄</h3><div class="val" id="lines">0</div></div>
+      <div class="card"><h3>레벨</h3><div class="val" id="level">1</div></div>
+      <div class="card"><h3>최고 점수</h3><div class="val" id="best">0</div></div>
+      <div class="help">← → 이동<br>↑ / X 회전<br>Z 반대 회전<br>↓ 천천히 내리기<br>Space 바로 내리기<br>C 보관 · P 일시정지</div>
+    </div>
+  </div>
+  <div class="pad" id="pad">
+    <button data-act="left">◀</button>
+    <button data-act="rotate">⟳</button>
+    <button data-act="right">▶</button>
+    <button data-act="down">▼</button>
+    <button data-act="drop" class="wide">바로 ⤓</button>
+    <button data-act="hold" class="wide">보관</button>
+    <button data-act="pause">⏸</button>
+  </div>
+
+<script>
+(() => {
+  const COLS = 10, ROWS = 20, SIZE = 30;
+  const board = document.getElementById('board');
+  const ctx = board.getContext('2d');
+  const nextCtx = document.getElementById('next').getContext('2d');
+  const holdCtx = document.getElementById('hold').getContext('2d');
+  const $ = id => document.getElementById(id);
+
+  // 각 조각 = 다른 털색의 고양이
+  const CATS = {
+    I: { fur: '#9e9e9e', ear: '#ffb3c1', stripe: '#7a7a7a', name: '회색냥' },
+    O: { fur: '#ffb347', ear: '#ffcad4', stripe: '#e58a1f', name: '치즈냥' },
+    T: { fur: '#3d3d3d', ear: '#ff9fb2', stripe: null,      name: '까망냥' },
+    S: { fur: '#fffaf2', ear: '#ffb3c1', stripe: null,      name: '하양냥' },
+    Z: { fur: '#c98b5b', ear: '#ffc2cf', stripe: '#8b5a35', name: '고등어냥' },
+    J: { fur: '#b8c6db', ear: '#ffc2cf', stripe: '#8f9fb8', name: '러블냥' },
+    L: { fur: '#f2d0a4', ear: '#ffb3c1', stripe: '#6b4a32', name: '샴냥' },
+  };
+  const SHAPES = {
+    I: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],
+    O: [[1,1],[1,1]],
+    T: [[0,1,0],[1,1,1],[0,0,0]],
+    S: [[0,1,1],[1,1,0],[0,0,0]],
+    Z: [[1,1,0],[0,1,1],[0,0,0]],
+    J: [[1,0,0],[1,1,1],[0,0,0]],
+    L: [[0,0,1],[1,1,1],[0,0,0]],
+  };
+
+  let grid, piece, nextQueue, holdType, canHold, score, lines, level;
+  let dropTimer = 0, lastTime = 0, running = false, paused = false, over = false;
+  let clearing = null; // { rows, t }
+  let particles = [];
+  let blinkSeed = 0;
+  let best = 0;
+  try { best = +localStorage.getItem('nyang-best') || 0; } catch (e) {}
+  $('best').textContent = best;
+
+  const emptyGrid = () => Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+
+  function bag() {
+    const b = Object.keys(SHAPES);
+    for (let i = b.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [b[i], b[j]] = [b[j], b[i]];
+    }
+    return b;
+  }
+  function takeNext() {
+    if (nextQueue.length < 7) nextQueue.push(...bag());
+    return nextQueue.shift();
+  }
+  function spawn(type) {
+    const m = SHAPES[type].map(r => r.slice());
+    piece = { type, m, x: Math.floor((COLS - m[0].length) / 2), y: type === 'I' ? -1 : 0 };
+    if (collide(piece.m, piece.x, piece.y)) gameOver();
+  }
+
+  function collide(m, ox, oy) {
+    for (let y = 0; y < m.length; y++)
+      for (let x = 0; x < m[y].length; x++) {
+        if (!m[y][x]) continue;
+        const gx = ox + x, gy = oy + y;
+        if (gx < 0 || gx >= COLS || gy >= ROWS) return true;
+        if (gy >= 0 && grid[gy][gx]) return true;
+      }
+    return false;
+  }
+  function rotated(m, dir) {
+    const n = m.length;
+    const r = Array.from({ length: n }, () => Array(n).fill(0));
+    for (let y = 0; y < n; y++)
+      for (let x = 0; x < n; x++)
+        if (dir > 0) r[x][n - 1 - y] = m[y][x];
+        else r[n - 1 - x][y] = m[y][x];
+    return r;
+  }
+  function rotate(dir) {
+    if (piece.type === 'O') return;
+    const r = rotated(piece.m, dir);
+    for (const k of [0, -1, 1, -2, 2]) {
+      if (!collide(r, piece.x + k, piece.y)) { piece.m = r; piece.x += k; return; }
+      if (!collide(r, piece.x + k, piece.y - 1)) { piece.m = r; piece.x += k; piece.y -= 1; return; }
+    }
+  }
+  function move(dx) { if (!collide(piece.m, piece.x + dx, piece.y)) piece.x += dx; }
+  function softDrop() {
+    if (!collide(piece.m, piece.x, piece.y + 1)) { piece.y++; score += 1; updateHUD(); }
+    else lock();
+    dropTimer = 0;
+  }
+  function hardDrop() {
+    let d = 0;
+    while (!collide(piece.m, piece.x, piece.y + 1)) { piece.y++; d++; }
+    score += d * 2;
+    updateHUD();
+    lock();
+  }
+  function hold() {
+    if (!canHold) return;
+    const cur = piece.type;
+    if (holdType) spawn(holdType); else spawn(takeNext());
+    holdType = cur; canHold = false;
+    drawMini(holdCtx, holdType);
+    drawMini(nextCtx, nextQueue[0]);
+  }
+  function ghostY() {
+    let y = piece.y;
+    while (!collide(piece.m, piece.x, y + 1)) y++;
+    return y;
+  }
+
+  function lock() {
+    let above = false;
+    piece.m.forEach((row, y) => row.forEach((v, x) => {
+      if (!v) return;
+      const gy = piece.y + y;
+      if (gy < 0) { above = true; return; }
+      grid[gy][piece.x + x] = { type: piece.type, mood: Math.random() };
+    }));
+    if (above) return gameOver();
+    const full = [];
+    grid.forEach((row, y) => { if (row.every(Boolean)) full.push(y); });
+    piece = null;
+    if (full.length) {
+      clearing = { rows: full, t: 0 };
+      full.forEach(y => grid[y].forEach((c, x) => spawnParticles(x, y, c.type)));
+    } else {
+      afterLock();
+    }
+  }
+  function afterLock() {
+    canHold = true;
+    spawn(takeNext());
+    drawMini(nextCtx, nextQueue[0]);
+  }
+  function finishClear() {
+    const n = clearing.rows.length;
+    clearing.rows.forEach(y => { grid.splice(y, 1); grid.unshift(Array(COLS).fill(null)); });
+    clearing = null;
+    score += [0, 100, 300, 500, 800][n] * level;
+    lines += n;
+    level = Math.floor(lines / 10) + 1;
+    updateHUD();
+    afterLock();
+  }
+
+  function spawnParticles(gx, gy, type) {
+    const words = ['냥', '야옹', '🐾', '♥', '냐~'];
+    for (let i = 0; i < 2; i++) {
+      particles.push({
+        x: gx * SIZE + SIZE / 2, y: gy * SIZE + SIZE / 2,
+        vx: (Math.random() - 0.5) * 3, vy: -Math.random() * 3 - 1,
+        life: 1, text: words[Math.floor(Math.random() * words.length)],
+        color: CATS[type].stripe || '#ff8fab',
+      });
+    }
+  }
+
+  function speed() { return Math.max(80, 800 - (level - 1) * 70); }
+
+  function updateHUD() {
+    $('score').textContent = score;
+    $('lines').textContent = lines;
+    $('level').textContent = level;
+  }
+
+  // ---------- 고양이 그리기 ----------
+  function drawCat(c, px, py, s, type, opts = {}) {
+    const cat = CATS[type];
+    const { alpha = 1, mood = 0.5, squish = 0, t = 0 } = opts;
+    c.save();
+    c.globalAlpha = alpha;
+    c.translate(px + s / 2, py + s / 2);
+    if (squish) c.scale(1 + squish * 0.3, 1 - squish * 0.3);
+    const r = s * 0.42;
+
+    // 귀
+    c.fillStyle = cat.fur;
+    c.strokeStyle = 'rgba(74,52,40,.55)';
+    c.lineWidth = Math.max(1, s * 0.04);
+    for (const sx of [-1, 1]) {
+      c.beginPath();
+      c.moveTo(sx * r * 0.95, -r * 0.25);
+      c.lineTo(sx * r * 0.75, -r * 1.12);
+      c.lineTo(sx * r * 0.2, -r * 0.75);
+      c.closePath(); c.fill(); c.stroke();
+      c.fillStyle = cat.ear;
+      c.beginPath();
+      c.moveTo(sx * r * 0.8, -r * 0.42);
+      c.lineTo(sx * r * 0.72, -r * 0.92);
+      c.lineTo(sx * r * 0.36, -r * 0.7);
+      c.closePath(); c.fill();
+      c.fillStyle = cat.fur;
+    }
+    // 얼굴
+    c.beginPath();
+    c.ellipse(0, r * 0.08, r, r * 0.88, 0, 0, Math.PI * 2);
+    c.fill(); c.stroke();
+
+    // 무늬
+    if (cat.stripe) {
+      c.save();
+      c.beginPath(); c.ellipse(0, r * 0.08, r, r * 0.88, 0, 0, Math.PI * 2); c.clip();
+      c.fillStyle = cat.stripe;
+      if (type === 'L') { // 샴: 얼굴 가운데 진한 마스크
+        c.beginPath(); c.ellipse(0, r * 0.35, r * 0.55, r * 0.5, 0, 0, Math.PI * 2); c.fill();
+      } else {
+        for (const dx of [-0.25, 0, 0.25]) {
+          c.fillRect(dx * r - r * 0.06, -r * 0.85, r * 0.12, r * 0.35);
+        }
+      }
+      c.restore();
+    }
+    if (type === 'S') { // 하양냥 볼 얼룩
+      c.fillStyle = '#e8c9a8';
+      c.beginPath(); c.ellipse(r * 0.5, -r * 0.3, r * 0.3, r * 0.22, 0.4, 0, Math.PI * 2); c.fill();
+    }
+
+    // 눈
+    const dark = type === 'T';
+    const eyeCol = dark ? '#ffd84d' : '#3b2a20';
+    const blink = ((t / 1000 + mood * 7) % 4) < 0.15;
+    c.fillStyle = eyeCol; c.strokeStyle = eyeCol;
+    c.lineWidth = Math.max(1, s * 0.05);
+    for (const sx of [-1, 1]) {
+      const ex = sx * r * 0.38, ey = -r * 0.05;
+      if (blink || mood > 0.85) {
+        c.beginPath(); c.arc(ex, ey, r * 0.14, Math.PI * 1.1, Math.PI * 1.9); c.stroke(); // ^^ 눈
+      } else {
+        c.beginPath(); c.ellipse(ex, ey, r * 0.12, r * 0.16, 0, 0, Math.PI * 2); c.fill();
+        if (dark) { c.fillStyle = '#222'; c.fillRect(ex - r * 0.025, ey - r * 0.13, r * 0.05, r * 0.26); c.fillStyle = eyeCol; }
+        c.fillStyle = '#fff';
+        c.beginPath(); c.arc(ex + r * 0.04, ey - r * 0.06, r * 0.045, 0, Math.PI * 2); c.fill();
+        c.fillStyle = eyeCol;
+      }
+    }
+    // 코 & 입
+    c.fillStyle = '#ff8fab';
+    c.beginPath();
+    c.moveTo(-r * 0.09, r * 0.2); c.lineTo(r * 0.09, r * 0.2); c.lineTo(0, r * 0.3);
+    c.closePath(); c.fill();
+    c.strokeStyle = dark ? '#ddd' : '#4a3428';
+    c.lineWidth = Math.max(1, s * 0.035);
+    c.beginPath();
+    c.moveTo(0, r * 0.3);
+    c.quadraticCurveTo(-r * 0.12, r * 0.48, -r * 0.24, r * 0.36);
+    c.moveTo(0, r * 0.3);
+    c.quadraticCurveTo(r * 0.12, r * 0.48, r * 0.24, r * 0.36);
+    c.stroke();
+    // 수염
+    c.strokeStyle = dark ? 'rgba(255,255,255,.7)' : 'rgba(74,52,40,.6)';
+    c.lineWidth = Math.max(0.7, s * 0.025);
+    c.beginPath();
+    for (const sx of [-1, 1]) {
+      c.moveTo(sx * r * 0.45, r * 0.25); c.lineTo(sx * r * 1.05, r * 0.15);
+      c.moveTo(sx * r * 0.45, r * 0.35); c.lineTo(sx * r * 1.05, r * 0.4);
+    }
+    c.stroke();
+    // 볼터치
+    c.fillStyle = 'rgba(255,143,171,.35)';
+    for (const sx of [-1, 1]) {
+      c.beginPath(); c.ellipse(sx * r * 0.6, r * 0.28, r * 0.14, r * 0.09, 0, 0, Math.PI * 2); c.fill();
+    }
+    c.restore();
+  }
+
+  function drawMini(c, type) {
+    c.clearRect(0, 0, c.canvas.width, c.canvas.height);
+    if (!type) return;
+    const m = SHAPES[type];
+    const cells = [];
+    m.forEach((row, y) => row.forEach((v, x) => v && cells.push([x, y])));
+    const minX = Math.min(...cells.map(p => p[0])), maxX = Math.max(...cells.map(p => p[0]));
+    const minY = Math.min(...cells.map(p => p[1])), maxY = Math.max(...cells.map(p => p[1]));
+    const s = 22;
+    const ox = (c.canvas.width - (maxX - minX + 1) * s) / 2;
+    const oy = (c.canvas.height - (maxY - minY + 1) * s) / 2;
+    cells.forEach(([x, y]) => drawCat(c, ox + (x - minX) * s, oy + (y - minY) * s, s, type));
+  }
+
+  function drawPaw(x, y, s, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.ellipse(x, y, s * 0.32, s * 0.26, 0, 0, Math.PI * 2); ctx.fill();
+    for (const [dx, dy] of [[-0.32, -0.38], [-0.11, -0.52], [0.11, -0.52], [0.32, -0.38]]) {
+      ctx.beginPath(); ctx.arc(x + dx * s, y + dy * s, s * 0.11, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  function draw(t) {
+    ctx.clearRect(0, 0, board.width, board.height);
+    // 배경 발자국 무늬
+    for (let y = 0; y < ROWS; y += 4)
+      for (let x = (y / 4) % 2 ? 2 : 0; x < COLS; x += 4)
+        drawPaw(x * SIZE + SIZE, y * SIZE + SIZE * 1.2, SIZE * 0.9, 'rgba(232,190,160,.25)');
+    // 격자
+    ctx.strokeStyle = 'rgba(214,170,140,.25)'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = 1; x < COLS; x++) { ctx.moveTo(x * SIZE + .5, 0); ctx.lineTo(x * SIZE + .5, board.height); }
+    for (let y = 1; y < ROWS; y++) { ctx.moveTo(0, y * SIZE + .5); ctx.lineTo(board.width, y * SIZE + .5); }
+    ctx.stroke();
+
+    // 쌓인 고양이
+    for (let y = 0; y < ROWS; y++)
+      for (let x = 0; x < COLS; x++) {
+        const cell = grid[y][x];
+        if (!cell) continue;
+        if (clearing && clearing.rows.includes(y)) {
+          const k = clearing.t / 350;
+          drawCat(ctx, x * SIZE, y * SIZE - k * 10, SIZE, cell.type,
+            { alpha: 1 - k, mood: 0.9, squish: Math.sin(k * Math.PI) * 0.6, t });
+        } else {
+          drawCat(ctx, x * SIZE, y * SIZE, SIZE, cell.type, { mood: cell.mood, t });
+        }
+      }
+
+    if (piece) {
+      // 그림자
+      const gy = ghostY();
+      piece.m.forEach((row, y) => row.forEach((v, x) => {
+        if (v && gy + y >= 0) drawCat(ctx, (piece.x + x) * SIZE, (gy + y) * SIZE, SIZE, piece.type, { alpha: 0.2, mood: 0.5 });
+      }));
+      piece.m.forEach((row, y) => row.forEach((v, x) => {
+        if (v && piece.y + y >= 0) drawCat(ctx, (piece.x + x) * SIZE, (piece.y + y) * SIZE, SIZE, piece.type, { mood: 0.3 + x * 0.1, t });
+      }));
+    }
+
+    // 파티클
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold 14px sans-serif';
+    particles.forEach(p => {
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.fillStyle = p.color;
+      ctx.fillText(p.text, p.x, p.y);
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  function loop(t) {
+    const dt = Math.min(50, t - lastTime);
+    lastTime = t;
+    if (running && !paused && !over) {
+      if (clearing) {
+        clearing.t += dt;
+        if (clearing.t >= 350) finishClear();
+      } else if (piece) {
+        dropTimer += dt;
+        if (dropTimer >= speed()) {
+          dropTimer = 0;
+          if (!collide(piece.m, piece.x, piece.y + 1)) piece.y++;
+          else lock();
+        }
+      }
+    }
+    particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.08; p.life -= dt / 1000; });
+    particles = particles.filter(p => p.life > 0);
+    draw(t);
+    requestAnimationFrame(loop);
+  }
+
+  function start() {
+    grid = emptyGrid();
+    nextQueue = bag();
+    holdType = null; canHold = true;
+    score = 0; lines = 0; level = 1;
+    over = false; paused = false; running = true; clearing = null; particles = [];
+    updateHUD();
+    spawn(takeNext());
+    drawMini(nextCtx, nextQueue[0]);
+    drawMini(holdCtx, null);
+    $('overlay').classList.add('hidden');
+  }
+  function gameOver() {
+    over = true; running = false; piece = null;
+    if (score > best) {
+      best = score;
+      try { localStorage.setItem('nyang-best', best); } catch (e) {}
+      $('best').textContent = best;
+    }
+    showOverlay('😿', '게임 오버냥…', `점수 ${score}점 · ${lines}줄`, '다시 하기');
+  }
+  function togglePause() {
+    if (!running || over) return;
+    paused = !paused;
+    if (paused) showOverlay('😴', '쿨쿨… 일시정지', '고양이들이 낮잠 중이에요', '계속하기');
+    else $('overlay').classList.add('hidden');
+  }
+  function showOverlay(big, title, text, btn) {
+    $('overlay').querySelector('.big').textContent = big;
+    $('ovTitle').textContent = title;
+    $('ovText').textContent = text;
+    $('startBtn').textContent = btn;
+    $('overlay').classList.remove('hidden');
+  }
+  $('startBtn').addEventListener('click', () => {
+    if (paused) togglePause(); else start();
+  });
+
+  function act(a) {
+    if (a === 'pause') return togglePause();
+    if (!running || paused || over || !piece) return;
+    switch (a) {
+      case 'left': move(-1); break;
+      case 'right': move(1); break;
+      case 'down': softDrop(); break;
+      case 'rotate': rotate(1); break;
+      case 'rotateCCW': rotate(-1); break;
+      case 'drop': hardDrop(); break;
+      case 'hold': hold(); break;
+    }
+  }
+  const KEYS = {
+    ArrowLeft: 'left', ArrowRight: 'right', ArrowDown: 'down', ArrowUp: 'rotate',
+    KeyX: 'rotate', KeyZ: 'rotateCCW', Space: 'drop', KeyC: 'hold', ShiftLeft: 'hold',
+    KeyP: 'pause', Escape: 'pause',
+  };
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Enter' && (!running || over)) { start(); return; }
+    const a = KEYS[e.code];
+    if (!a) return;
+    e.preventDefault();
+    act(a);
+  });
+
+  // 모바일 버튼 (길게 누르면 반복)
+  document.querySelectorAll('#pad button').forEach(b => {
+    let rep, delay;
+    const a = b.dataset.act;
+    const stop = () => { clearTimeout(delay); clearInterval(rep); };
+    b.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      act(a);
+      if (['left', 'right', 'down'].includes(a)) {
+        delay = setTimeout(() => { rep = setInterval(() => act(a), 60); }, 180);
+      }
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => b.addEventListener(ev, stop));
+  });
+
+  grid = emptyGrid();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
