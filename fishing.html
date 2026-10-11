@@ -40,12 +40,19 @@
   .hud .timer.low { color: var(--danger); }
   .hud .count { font-size: 12px; color: var(--muted); font-weight: 600; margin-top: 2px; }
   .hud .right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; padding-right: 84px; }
+  #fight .row + .row { margin-top: 6px; }
   .sound-row { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 13px); right: 14px; display: flex; gap: 6px; z-index: 6; }
   .sbtn { width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgba(255,255,255,.25); background: rgba(255,255,255,.1); font-size: 15px; display: flex; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(6px); touch-action: manipulation; position: relative; }
   .sbtn.off { opacity: .5; }
   .sbtn.off::after { content: ''; position: absolute; left: 6px; right: 6px; top: 50%; height: 2px; background: #ff5f7a; transform: rotate(-35deg); border-radius: 2px; }
   .hud .clock { font-size: 13px; color: var(--muted); font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
-  #minimapWrap { pointer-events: auto; cursor: pointer; text-align: center; }
+  #minimapWrap { position: fixed; left: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 60px); cursor: pointer; text-align: center; z-index: 2; }
+  #reel { position: fixed; right: 10px; bottom: calc(env(safe-area-inset-bottom, 0px) + 44px); width: 150px; height: 150px; z-index: 3; touch-action: none; cursor: grab; }
+  #reel canvas { width: 150px; height: 150px; display: block; filter: drop-shadow(0 8px 18px rgba(0,0,0,.45)); }
+  #reel .reelHint { position: absolute; left: 0; right: 0; top: -22px; text-align: center; font-size: 11px; font-weight: 800; color: var(--ink); text-shadow: 0 2px 6px rgba(0,0,0,.7); white-space: nowrap; }
+  #reel.cranking .reelHint { color: var(--ok); }
+  #fight { left: 14px; right: 176px; transform: none; width: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 72px); }
+  @media (max-width: 560px) { #reel { width: 128px; height: 128px; } #reel canvas { width: 128px; height: 128px; } #fight { right: 150px; } }
   #minimap { width: 68px; height: 68px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); background: #0b3d5e; box-shadow: 0 4px 16px rgba(0,0,0,.4); display: block; }
   #minimapWrap .spotName { font-size: 10px; color: var(--ink); font-weight: 700; margin-top: 3px; text-shadow: 0 2px 6px rgba(0,0,0,.7); }
   #mapCanvas { width: min(86vw, 56vh); height: min(86vw, 56vh); border-radius: 18px; border: 2px solid rgba(255,255,255,.2); box-shadow: 0 16px 48px rgba(0,0,0,.5); touch-action: manipulation; }
@@ -62,8 +69,8 @@
   }
 
   #hint {
-    position: fixed; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + 22px);
-    text-align: center; pointer-events: none; padding: 0 24px;
+    position: fixed; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
+    text-align: center; pointer-events: none; padding: 0 92px;
     font-size: 14px; font-weight: 700; color: var(--ink); text-shadow: 0 2px 8px rgba(0,0,0,.6);
     line-height: 1.5;
   }
@@ -98,7 +105,7 @@
   .bar.dist .fill { background: linear-gradient(90deg, #5ad1ff, #4fe3a3); }
   #fight .row + .row { margin-top: 10px; }
   #run {
-    text-align: center; margin-top: 10px; font-weight: 900; color: var(--danger); font-size: 16px;
+    text-align: center; margin-top: 8px; font-weight: 900; color: var(--danger); font-size: 14px;
     text-shadow: 0 2px 8px rgba(0,0,0,.6); animation: blink .35s steps(2) infinite;
   }
   @keyframes blink { to { opacity: .35; } }
@@ -182,9 +189,10 @@
   </div>
   <div class="right">
     <button id="pauseBtn" class="hidden" aria-label="일시정지">II</button>
-    <div id="minimapWrap" class="hidden"><canvas id="minimap" width="220" height="220"></canvas><div class="spotName" id="spotName"></div></div>
   </div>
 </div>
+<div id="minimapWrap" class="hidden"><canvas id="minimap" width="220" height="220"></canvas><div class="spotName" id="spotName"></div></div>
+<div id="reel" class="hidden"><canvas id="reelCv" width="300" height="300"></canvas><div class="reelHint">↻ 돌려서 감기</div></div>
 
 <div id="mapOverlay" class="overlay hidden">
   <h1>🗺️ 낚시 지도</h1>
@@ -216,7 +224,7 @@
     <div class="label"><span>남은 거리</span><span id="distText">0m</span></div>
     <div class="bar dist"><div class="fill" id="distFill"></div></div>
   </div>
-  <div id="run" class="hidden">🐟💨 달아난다! 손을 떼세요</div>
+  <div id="run" class="hidden">🐟💨 달아난다! 릴을 멈추세요</div>
 </div>
 
 <div id="startOverlay" class="overlay scroll">
@@ -232,7 +240,7 @@
     <div class="guide" style="margin-top:8px">
       <b>던지기</b><span>화면을 꾹 눌러 힘을 모으고, 놓으면 던집니다. 누른 채 좌우로 움직이면 방향 조절</span>
       <b>챔질</b><span>찌가 쑥 들어가며 <b>!</b> 표시가 뜨면 바로 탭</span>
-      <b>릴 감기</b><span>꾹 누르면 감습니다. 물고기가 달아날 땐 손을 떼서 장력을 낮추세요</span>
+      <b>릴 감기</b><span>오른쪽 아래 릴 손잡이를 손가락으로 빙글빙글 돌리면 줄이 감깁니다. 빨리 돌릴수록 빨리 감기지만 장력도 빨리 오릅니다. 물고기가 달아날 땐(🐟💨) 손을 멈추세요</span>
       <b>회수</b><span>입질이 없으면 0.7초 이상 꾹 눌러 찌를 거둡니다</span>
       <b>이동</b><span>오른쪽 위 미니맵을 눌러 지도를 열고 포인트를 고르면 배가 이동합니다 (찌를 거둔 상태에서만)</span>
       <b>데스크톱</b><span>Space 누르기/놓기 · ← → 방향 · P 일시정지</span>
@@ -1554,7 +1562,8 @@ function updateCharacterPose(dt, t) {
   character.updateMatrixWorld(true);
   ikArm(U.arms.R, _handR, 1);
   // 왼손은 릴 아래 손잡이를 잡음
-  _handL.set(0, -0.3, 0); rodRig.localToWorld(_handL); character.worldToLocal(_handL);
+  const crank = S.state === 'fight' ? 0.06 : 0;
+  _handL.set(Math.cos(reel.angle) * crank, -0.3 + Math.sin(reel.angle) * crank, -0.02 - crank); rodRig.localToWorld(_handL); character.worldToLocal(_handL);
   ikArm(U.arms.L, _handL, -1);
   // 머리는 찌를 바라봄
   _look.copy(bobber.position); character.worldToLocal(_look); _look.sub(U.headG.position);
@@ -1643,11 +1652,14 @@ function setState(s) {
   S.state = s;
   ui.power.classList.toggle('hidden', s !== 'charging');
   ui.fight.classList.toggle('hidden', s !== 'fight');
+  reel.el.classList.toggle('hidden', s !== 'fight');
+  if (S.running) $('minimapWrap').classList.toggle('hidden', s === 'fight' || s === 'caught' || s === 'card');
+  if (s === 'fight') { reel.omega = 0; reel.input = 0; reel.rate = 0; reel.active = false; drawReel(); }
   ui.bite.classList.toggle('hidden', s !== 'bite');
   if (s === 'ready') setHint('꾹 눌러 힘을 모으고, 놓으면 던집니다 · 누른 채 좌우로 움직여 방향 조절');
   else if (s === 'charging') setHint('놓으면 던집니다!');
   else if (s === 'floating') setHint('입질을 기다리세요… 찌가 쑥 들어가면 탭!');
-  else if (s === 'fight') setHint('꾹 눌러 릴 감기 · 달아날 땐 손을 떼세요');
+  else if (s === 'fight') setHint('');
   else if (s === 'travel') setHint('이동 중…');
   else setHint('');
 }
@@ -1793,8 +1805,8 @@ function hook() {
   const dist = distBow(bobber.position.x, bobber.position.z);
   const strength = clamp(0.2 + 0.11 * Math.log2(1 + f.weight), 0.2, 0.8) * f.sp.fight;
   fight = {
-    fish: f, dist, startDist: dist, maxDist: Math.max(dist * 1.6, dist + 10),
-    tension: 0.15, strength, stamina: 1.4 + f.weight * 0.07,
+    fish: f, dist, startDist: dist, maxDist: Math.max(dist * 1.8, dist + 14),
+    tension: 0.15, strength, stamina: 3 + f.weight * 0.12, runs: 0,
     running: false, runTimer: rand(0.6, 1.4), runDir: 0,
     angle: Math.atan2(bobber.position.x - BOW.x, -(bobber.position.z - BOW.z)),
     thrash: 0,
@@ -2084,6 +2096,58 @@ $('mapCanvas').addEventListener('click', (e) => {
 });
 $('goBtn').addEventListener('click', () => { if (S.mapSel) { closeMap(); travelTo(S.mapSel); } });
 
+// ---------- 릴 조작 (원형 드래그) ----------
+const reel = { el: $('reel'), cv: $('reelCv'), active: false, pid: null, lastAng: 0, angle: 0, input: 0, omega: 0, rate: 0 };
+function reelAngleOf(e) { const r = reel.el.getBoundingClientRect(); return Math.atan2(e.clientY - (r.top + r.height / 2), e.clientX - (r.left + r.width / 2)); }
+reel.el.addEventListener('pointerdown', (e) => {
+  if (S.state !== 'fight') return;
+  e.preventDefault(); e.stopPropagation();
+  try { reel.el.setPointerCapture(e.pointerId); } catch (err) {}
+  reel.active = true; reel.pid = e.pointerId; reel.lastAng = reelAngleOf(e);
+  sfx.ensure();
+});
+reel.el.addEventListener('pointermove', (e) => {
+  if (!reel.active || e.pointerId !== reel.pid) return;
+  const a = reelAngleOf(e);
+  let d = a - reel.lastAng; d = Math.atan2(Math.sin(d), Math.cos(d));
+  reel.lastAng = a;
+  if (d > 0) { reel.input += d; reel.angle += d; } // 시계 방향만 감김
+});
+const reelStop = (e) => { if (reel.active && (!e || e.pointerId === reel.pid)) { reel.active = false; reel.pid = null; } };
+reel.el.addEventListener('pointerup', reelStop); reel.el.addEventListener('pointercancel', reelStop); reel.el.addEventListener('lostpointercapture', () => reelStop());
+function drawReel() {
+  const cv = reel.cv, g = cv.getContext('2d'), W = cv.width, c = W / 2;
+  g.clearRect(0, 0, W, W);
+  const rate = reel.rate;
+  reel.el.classList.toggle('cranking', rate > 0.08);
+  if (keys.Space || keys.ArrowUp || keys.KeyW) reel.angle += 0.12;
+  // 바깥 테두리
+  let grd = g.createRadialGradient(c - 30, c - 30, 10, c, c, W / 2);
+  grd.addColorStop(0, '#cfd6de'); grd.addColorStop(0.7, '#7f8a96'); grd.addColorStop(1, '#3a414b');
+  g.beginPath(); g.arc(c, c, W / 2 - 4, 0, Math.PI * 2); g.fillStyle = grd; g.fill();
+  g.lineWidth = 3; g.strokeStyle = rate > 0.08 ? '#4fe3a3' : 'rgba(255,255,255,.5)'; g.stroke();
+  // 스풀 (줄 감긴 부분) — 회전
+  g.save(); g.translate(c, c); g.rotate(reel.angle);
+  grd = g.createRadialGradient(0, 0, 10, 0, 0, W * 0.36);
+  grd.addColorStop(0, '#2a2f38'); grd.addColorStop(1, '#141820');
+  g.beginPath(); g.arc(0, 0, W * 0.36, 0, Math.PI * 2); g.fillStyle = grd; g.fill();
+  g.strokeStyle = 'rgba(255,255,255,.18)'; g.lineWidth = 1.2;
+  for (let r = W * 0.14; r < W * 0.35; r += 5) { g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.stroke(); }
+  g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 2;
+  for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; g.beginPath(); g.moveTo(Math.cos(a) * W * 0.12, Math.sin(a) * W * 0.12); g.lineTo(Math.cos(a) * W * 0.33, Math.sin(a) * W * 0.33); g.stroke(); }
+  // 손잡이 팔 + 손잡이
+  g.fillStyle = '#e3e8ee'; g.strokeStyle = '#3a414b'; g.lineWidth = 2;
+  g.beginPath(); g.roundRect ? g.roundRect(-9, -9, W * 0.42, 18, 9) : g.rect(-9, -9, W * 0.42, 18); g.fill(); g.stroke();
+  g.beginPath(); g.arc(W * 0.4, 0, 17, 0, Math.PI * 2); g.fillStyle = '#ffd166'; g.fill(); g.stroke();
+  g.beginPath(); g.arc(W * 0.4, 0, 6, 0, Math.PI * 2); g.fillStyle = '#3a414b'; g.fill();
+  g.restore();
+  g.beginPath(); g.arc(c, c, 9, 0, Math.PI * 2); g.fillStyle = '#9aa4b0'; g.fill();
+  // 회전 방향 화살표
+  g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = 3; g.beginPath(); g.arc(c, c, W / 2 - 14, -Math.PI * 0.85, -Math.PI * 0.35); g.stroke();
+  const ax = c + Math.cos(-Math.PI * 0.35) * (W / 2 - 14), ay = c + Math.sin(-Math.PI * 0.35) * (W / 2 - 14);
+  g.beginPath(); g.moveTo(ax - 9, ay - 6); g.lineTo(ax + 3, ay - 1); g.lineTo(ax - 8, ay + 6); g.closePath(); g.fillStyle = 'rgba(255,255,255,.6)'; g.fill();
+}
+
 // ---------- 업데이트 ----------
 function updateFight(dt) {
   const f = fight, fish = f.fish;
@@ -2092,24 +2156,32 @@ function updateFight(dt) {
     f.running = !f.running;
     const tired = f.stamina <= 0;
     if (f.running) {
-      f.runTimer = rand(0.7, 1.7) * (tired ? 0.6 : 1) * (0.9 + Math.min(fish.weight, 60) * 0.006);
+      f.runs++;
+      f.runTimer = rand(0.8, 2.0) * (tired ? 0.55 : 1) * (0.9 + Math.min(fish.weight, 60) * 0.008);
       f.runDir = rand(-0.9, 0.9);
       sfx.run(); vibrate(30);
-    } else f.runTimer = rand(0.9, 2.4) * (tired ? 1.4 : 1);
+    } else f.runTimer = rand(1.2, 3.0) * (tired ? 1.5 : 1);
   }
   ui.run.classList.toggle('hidden', !f.running);
   let pull = f.strength * (f.running ? 1 : 0.28);
   if (f.stamina <= 0) pull *= 0.45;
-  const reeling = S.pressing;
+  // 릴 손잡이 회전 속도 → 감는 세기 (Space 키는 일정 속도로 자동 회전)
+  if (keys.Space || keys.ArrowUp || keys.KeyW) reel.input += Math.PI * 2 * 1.2 * dt;
+  const omegaNow = dt > 0 ? reel.input / dt : 0; reel.input = 0;
+  reel.omega = lerp(reel.omega, omegaNow, 1 - Math.exp(-dt * 10));
+  const rate = clamp(reel.omega / (Math.PI * 2 * 1.3), 0, 1.35); // 초당 1.3바퀴 = 100%
+  reel.rate = rate;
   const lineK = 1 / selRod.line, reelK = selRod.reel * (selChar.reel || 1);
-  if (reeling) {
-    f.tension += (0.45 + pull * 0.95) * lineK * dt;
-    f.dist -= 4.3 * reelK * (1 - pull * 0.55) * dt;
-    S.reelTick -= dt; if (S.reelTick <= 0) { sfx.reel(); S.reelTick = 0.07; }
+  if (rate > 0.05) {
+    f.tension += (0.22 + pull * 0.95) * rate * lineK * dt;
+    f.dist -= 2.5 * rate * reelK * (1 - pull * 0.55) * dt;
+    f.tension -= 0.15 * (1 - rate) * dt;
   } else {
     f.tension -= (0.85 - pull * 0.35) * dt;
-    f.dist += pull * 2.8 * dt;
   }
+  if (f.running) f.dist += pull * 3.2 * (rate > 0.05 ? 0.55 : 1) * dt;
+  else if (rate <= 0.05) f.dist += pull * 1.2 * dt;
+  S.reelTick -= rate * dt; if (S.reelTick <= 0 && rate > 0.05) { sfx.reel(); S.reelTick = 0.06; }
   if (f.running && f.tension > 0.25) f.stamina -= dt;
   f.tension = clamp(f.tension, 0, 1.2);
   if (f.tension >= 1) { loseFish('줄이 끊어졌다! 💥', true); return; }
@@ -2130,6 +2202,7 @@ function updateFight(dt) {
 
   ui.tensionFill.style.left = `calc(${(clamp(f.tension, 0, 1) * 100).toFixed(1)}% - 2px)`;
   ui.tensionText.textContent = f.tension > 0.85 ? '위험!' : f.tension > 0.6 ? '주의' : f.stamina <= 0 ? '지쳤다!' : '안전';
+  drawReel();
   ui.tensionText.style.color = f.tension > 0.85 ? '#ff5f7a' : f.tension > 0.6 ? '#ffd166' : f.stamina <= 0 ? '#4fe3a3' : '';
   ui.distFill.style.width = `${(clamp(1 - f.dist / f.startDist, 0, 1) * 100).toFixed(1)}%`;
   ui.distText.textContent = `${Math.max(0, f.dist).toFixed(1)}m`;
