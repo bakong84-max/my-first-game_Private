@@ -200,7 +200,8 @@
   .card .stats b { color: var(--ink); font-size: 20px; display: block; }
   .card .pts { font-size: 42px; font-family: var(--display); font-weight: 400; color: var(--gold); margin-top: 10px; text-shadow: 0 0 20px rgba(255,209,102,.45); }
   .card .record { color: var(--gold); font-weight: 800; font-size: 13px; margin-top: 4px; min-height: 16px; }
-  #catchOverlay { justify-content: flex-end; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 7vh); background: rgba(6,30,52,.35); backdrop-filter: none; }
+  #catchOverlay { justify-content: flex-end; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 7vh); background: rgba(6,30,52,.2); backdrop-filter: none; }
+  @media (min-aspect-ratio: 5/4) { #catchOverlay { align-items: flex-end; padding-right: 7vw; justify-content: center; } }
   .record-list { font-size: 14px; color: var(--muted); line-height: 1.7; }
   .record-list b { color: var(--ink); }
 </style>
@@ -273,6 +274,7 @@
   <div class="section"><h2>낚싯대</h2><div class="picker" id="rodPicker"></div></div>
   <div class="section"><h2>출항 시간</h2><div class="picker three" id="timePicker"></div></div>
   <button class="btn" id="startBtn">출항!</button>
+  <p id="vibInfo" style="font-size:12px"></p>
   <details>
     <summary>조작법 보기</summary>
     <div class="guide" style="margin-top:8px">
@@ -380,9 +382,9 @@ const LS = { best: 'fishing3d.best', biggest: 'fishing3d.biggest', char: 'fishin
 // h/w: 길이 대비 몸 높이/폭, minDist: 뱃머리에서 최소 서식 거리(m)
 const SPECIES = [
   { name: '전갱이',   minW: 0.15, maxW: 0.6,  lenA: 36, rarity: 28, fight: 0.85, speed: 3.4, tier: '일반', minDist: 5,
-    back: 0x3f6f62, side: 0xb9c9bd, belly: 0xeef3f0, fin: 0x8fa89a, h: 0.24, w: 0.12, pattern: 'lateral-dark', dorsal: 'twin', tail: 'fork', depth: [-1.2, -2.6] },
+    back: 0x3f6f62, side: 0xb9c9bd, belly: 0xeef3f0, fin: 0x8fa89a, h: 0.24, w: 0.12, pattern: 'lateral-dark', dorsal: 'twin', tail: 'fork', depth: [-1.2, -2.6], school: true },
   { name: '고등어',   minW: 0.3,  maxW: 1.5,  lenA: 40, rarity: 26, fight: 0.95, speed: 3.8, tier: '일반', minDist: 6,
-    back: 0x1f5e8c, side: 0xa9c4d6, belly: 0xf0f4f7, fin: 0x5b7f98, h: 0.22, w: 0.13, pattern: 'mackerel', dorsal: 'twin', tail: 'fork', depth: [-1.2, -3.0] },
+    back: 0x1f5e8c, side: 0xa9c4d6, belly: 0xf0f4f7, fin: 0x5b7f98, h: 0.22, w: 0.13, pattern: 'mackerel', dorsal: 'twin', tail: 'fork', depth: [-1.2, -3.0], school: true },
   { name: '우럭',     minW: 0.5,  maxW: 3.0,  lenA: 35, rarity: 18, fight: 0.9,  speed: 2.2, tier: '일반', minDist: 8,
     back: 0x33333a, side: 0x6a6a72, belly: 0xa9a9b0, fin: 0x4a4a52, h: 0.32, w: 0.17, pattern: 'blotch', dorsal: 'spiny', tail: 'round', depth: [-2.5, -5.0] },
   { name: '광어',     minW: 1.0,  maxW: 6.0,  lenA: 45, rarity: 12, fight: 0.8,  speed: 1.8, tier: '희귀', minDist: 10,
@@ -443,8 +445,8 @@ const DAY_KF = [
   { h: 0,    top: 0x070f24, hor: 0x16233f, sunC: 0x000000, hemiS: 0x3a4a6a, hemiG: 0x05101c, sunI: 0.35, hemiI: 0.35, deep: 0x04182a, shallow: 0x0a3a50, wsky: 0x2a3a55, env: 0.12, night: 1 },
   { h: 4.6,  top: 0x070f24, hor: 0x16233f, sunC: 0x000000, hemiS: 0x3a4a6a, hemiG: 0x05101c, sunI: 0.35, hemiI: 0.35, deep: 0x04182a, shallow: 0x0a3a50, wsky: 0x2a3a55, env: 0.12, night: 1 },
   { h: 6,    top: 0x2d3f7a, hor: 0xf2a56a, sunC: 0xffb070, hemiS: 0x8a7fa0, hemiG: 0x1a2030, sunI: 1.2, hemiI: 0.6, deep: 0x0a3550, shallow: 0x2a6a80, wsky: 0xf0b080, env: 0.4, night: 0.35 },
-  { h: 8,    top: 0x2a73cf, hor: 0xcfe6f3, sunC: 0xfff0d0, hemiS: 0xcfe9ff, hemiG: 0x0b3b55, sunI: 2.6, hemiI: 0.75, deep: 0x0b4f74, shallow: 0x1d9ab8, wsky: 0xd4ecf8, env: 1, night: 0 },
-  { h: 13,   top: 0x1f6fd0, hor: 0xbfe3f5, sunC: 0xfff3df, hemiS: 0xcfe9ff, hemiG: 0x0b3b55, sunI: 2.9, hemiI: 0.75, deep: 0x0b4f74, shallow: 0x1d9ab8, wsky: 0xd4ecf8, env: 1, night: 0 },
+  { h: 8,    top: 0x2a73cf, hor: 0xcfe6f3, sunC: 0xfff0d0, hemiS: 0xcfe9ff, hemiG: 0x0b3b55, sunI: 2.6, hemiI: 0.75, deep: 0x08364f, shallow: 0x177a8c, wsky: 0xd4ecf8, env: 1, night: 0 },
+  { h: 13,   top: 0x1f6fd0, hor: 0xbfe3f5, sunC: 0xfff3df, hemiS: 0xcfe9ff, hemiG: 0x0b3b55, sunI: 2.9, hemiI: 0.75, deep: 0x08364f, shallow: 0x177a8c, wsky: 0xd4ecf8, env: 1, night: 0 },
   { h: 17,   top: 0x3a6fc0, hor: 0xf0c890, sunC: 0xffd9a0, hemiS: 0xd8c8b0, hemiG: 0x0b3b55, sunI: 2.0, hemiI: 0.65, deep: 0x0a4466, shallow: 0x2a86a0, wsky: 0xf0d0a0, env: 0.8, night: 0 },
   { h: 18.7, top: 0x3b3f8a, hor: 0xff8a50, sunC: 0xff9050, hemiS: 0x9a6a7a, hemiG: 0x1a2030, sunI: 1.0, hemiI: 0.5, deep: 0x082a40, shallow: 0x1a5060, wsky: 0xff9a60, env: 0.4, night: 0.3 },
   { h: 20,   top: 0x101a3a, hor: 0x3a3558, sunC: 0x301818, hemiS: 0x4a4a70, hemiG: 0x08101c, sunI: 0.4, hemiI: 0.4, deep: 0x05202e, shallow: 0x0c4055, wsky: 0x4a4a6a, env: 0.18, night: 0.85 },
@@ -465,11 +467,23 @@ function fmtW(w) { return w >= 10 ? w.toFixed(1) + 'kg' : w >= 1 ? w.toFixed(2) 
 
 // ---------- 캐릭터 / 낚싯대 ----------
 const CHARACTERS = [
-  // 색은 실제 의류·피부 톤에 가깝게 (저채도)
-  { id: 'minsu',   name: '민수',   emoji: '🧢', desc: '열정 낚시꾼', trait: '릴 감기 15% 빠름', skin: 0xd9a981, hair: 0x2a1e16, hat: 'cap', hatColor: 0x8f3a34, shirt: 0x2f3d55, topKind: 'knit', pants: 0x857357, pantsKind: 'cotton', vest: null, pocket: true, reel: 1.15 },
-  { id: 'sujin',   name: '수진',   emoji: '👒', desc: '베테랑 조사', trait: '입질 30% 빨리 옴', skin: 0xe6bf9c, hair: 0x4a2e1e, hat: 'pony', shirt: 0xe4dfd3, topKind: 'cotton', pants: 0x2c3a50, pantsKind: 'denim', vest: 0xd4602c, glasses: true, biteSpeed: 0.7 },
-  { id: 'captain', name: '김 선장', emoji: '🧔', desc: '노련한 선장', trait: '챔질 여유 40% 증가', skin: 0xc99a74, hair: 0xb8b2a6, hat: 'bucket', hatColor: 0x6a6a4c, shirt: 0x56604a, topKind: 'nylon', pants: 0x3a3b39, pantsKind: 'cotton', beard: 0xb5afa3, boots: true, biteWindow: 1.4 },
-  { id: 'haneul',  name: '하늘',   emoji: '🧒', desc: '행운의 꼬마', trait: '희귀 어종 2배 등장', skin: 0xe8c3a2, hair: 0x1c1a18, hat: 'short', shirt: 0xc6973a, topKind: 'knit', pants: 0x5d7793, pantsKind: 'denim', vest: 0xbf4f66, scale: 0.78, luck: 2 },
+  // 남: 세련된 준호 / 씩씩한 강호, 여: 귀여운 하늘 / 섹시한 유나 (색은 실제 의류 톤)
+  { id: 'junho',  name: '준호', emoji: '🕶️', desc: '세련된 도시 조사', trait: '릴 감기 15% 빠름', cheer: 'pump',
+    skin: 0xd9ab85, hair: 0x241a14, hat: 'swept', glasses: 'up', watch: true, jaw: 1.05, browAngle: -0.22,
+    shirt: 0x2a2f36, topKind: 'nylon', pants: 0x8c7b63, pantsKind: 'cotton', shoe: 0xf1ede6, sole: 0xd8d2c8, sleeves: 'long', pocket: true,
+    body: { shoulder: 1.02, chest: 1.0, waist: 0.9, hip: 0.92, arm: 1.0 }, reel: 1.15 },
+  { id: 'gangho', name: '강호', emoji: '💪', desc: '씩씩한 바다 사나이', trait: '챔질 여유 40% 증가', cheer: 'roar',
+    skin: 0xc48f67, hair: 0x1e1612, hat: 'backcap', hatColor: 0x2d3a4c, stubble: true, jaw: 1.12, browAngle: -0.3, nose: 1.15,
+    shirt: 0xd6d1c4, topKind: 'cotton', tank: true, sleeves: 'none', pants: 0x6b6a4e, pantsKind: 'cotton', shorts: 0.3, shoe: 0x2b2b2f, sole: 0x3a3a3e,
+    body: { shoulder: 1.2, chest: 1.16, waist: 1.02, hip: 1.0, arm: 1.35, neck: 1.25 }, biteWindow: 1.4 },
+  { id: 'haneul', name: '하늘', emoji: '🎀', desc: '귀여운 행운의 소녀', trait: '희귀 어종 2배 등장', cheer: 'hop',
+    skin: 0xf0cbb0, hair: 0x3a2318, hat: 'twin', ribbon: 0xe25c7a, eyeScale: 1.45, eyeColor: 0x3b2a1e, lashes: true, blush: true, lips: true, lipColor: 0xd0706e, nose: 0.8, browAngle: 0.05,
+    shirt: 0xd9a7b5, topKind: 'knit', hoodie: true, pants: 0x4e6b8c, pantsKind: 'denim', shorts: 0.2, leggings: 0x2b2b33, shoe: 0xf4f0ea, sole: 0xe2b8c2,
+    body: { shoulder: 0.84, chest: 0.9, waist: 0.82, hip: 0.95, arm: 0.85, head: 1.1, neck: 0.85 }, scale: 0.86, luck: 2 },
+  { id: 'yuna',   name: '유나', emoji: '💃', desc: '섹시한 베테랑 조사', trait: '입질 30% 빨리 옴', cheer: 'sway',
+    skin: 0xe3b593, hair: 0x4a2a1a, hat: 'long', earrings: true, eyeScale: 1.2, eyeColor: 0x4a3222, lashes: true, lips: true, lipColor: 0xb9414b, nose: 0.85, browAngle: -0.18,
+    shirt: 0xf0ebe2, topKind: 'cotton', crop: true, bust: 1.0, sleeves: 'short', pants: 0x34455f, pantsKind: 'denim', shorts: 0.17, shoe: 0xf4f0ea, sole: 0xd8d2c8,
+    body: { shoulder: 0.88, chest: 1.0, waist: 0.72, hip: 1.14, arm: 0.85, leg: 0.95, neck: 0.85 }, scale: 0.97, biteSpeed: 0.7 },
 ];
 const RODS = [
   { id: 'basic',  name: '입문용 로드', emoji: '🎣', desc: '균형 잡힌 기본 장비', cast: 25, line: 1.0,  reel: 1.0,  color: 0x2a2a30, grip: 0x8a6a4a, accent: 0xc8c8c8, len: 2.4, reelType: 'spin', unlock: 0 },
@@ -497,6 +511,13 @@ function waveH(x, z, t) {
 }
 const f4 = (n) => (n < 0 ? `(${n.toFixed(4)})` : n.toFixed(4));
 const GLSL_WAVE = `float waveH(vec2 p, float t){ return ${WAVES.map(w => `${f4(w[0])}*sin(${f4(w[1])}*p.x+${f4(w[2])}*p.y+${f4(w[3])}*t+${f4(w[4])})`).join('+')}; }`;
+// 게르스트너 파도: 마루가 뾰족하고 골이 넓은 실제 바다 형태 (수평 변위 + 해석적 법선)
+const GLSL_GERSTNER = `void gerstner(vec2 p, float t, out vec3 disp, out vec3 nrm){
+  disp = vec3(0.0); vec3 n = vec3(0.0, 1.0, 0.0);
+  ${WAVES.map(w => { const k = Math.hypot(w[1], w[2]); const dx = w[1] / k, dz = w[2] / k; const Q = 0.42 / (k * w[0] * WAVES.length); return `{ float th = ${f4(w[1])}*p.x+${f4(w[2])}*p.y+${f4(w[3])}*t+${f4(w[4])}; float c = cos(th), sn = sin(th);
+    disp += vec3(${f4(Q * w[0] * dx)}*c, ${f4(w[0])}*sn, ${f4(Q * w[0] * dz)}*c);
+    n.x -= ${f4(dx * k * w[0])}*c; n.z -= ${f4(dz * k * w[0])}*c; n.y -= ${f4(Q * k * w[0])}*sn; }`; }).join('\n')}
+  nrm = normalize(n); }`;
 
 // ---------- 오디오 믹서 (효과음 / BGM 채널) ----------
 const audio = (() => {
@@ -688,7 +709,11 @@ const sfx = (() => {
   };
 })();
 const canVibrate = typeof navigator.vibrate === 'function';
-const vibrate = (p) => { if (!audio.prefs.vib || !canVibrate) return; try { navigator.vibrate(p); } catch (e) {} };
+let vibState = canVibrate ? 'unknown' : 'unsupported';
+const vibrate = (p) => {
+  if (!audio.prefs.vib || !canVibrate) return;
+  try { const ok = navigator.vibrate(p); if (vibState === 'unknown') vibState = ok ? 'ok' : 'blocked'; } catch (e) { vibState = 'blocked'; }
+};
 let hapticTick = 0; // 릴 감기/달아남 중 연속 진동 간격
 
 // ---------- 렌더러 / 씬 ----------
@@ -702,6 +727,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 
 renderer.shadowMap.enabled = !LOW_FX;
+renderer.shadowMap.autoUpdate = false;
 renderer.shadowMap.type = MOBILE ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 stage.appendChild(renderer.domElement);
 
@@ -854,40 +880,51 @@ const waterNormalTex = makeWaterNormalTexture();
 // 수면 반사: 거울 카메라로 장면을 렌더 타깃에 그린 뒤 수면 셰이더에서 샘플
 const REFL_SIZE = LOW_FX ? 256 : (MOBILE ? 512 : 1024);
 const reflRT = new THREE.WebGLRenderTarget(REFL_SIZE, REFL_SIZE, { type: THREE.HalfFloatType });
+// 수면 아래 장면(색 + 깊이): 굴절·수심 흡수·해안 포말 계산에 사용
+const SCENE_SCALE = LOW_FX ? 0.5 : (MOBILE ? 0.7 : 1);
+const sceneDepthTex = new THREE.DepthTexture(2, 2); sceneDepthTex.type = THREE.UnsignedIntType;
+const sceneRT = new THREE.WebGLRenderTarget(2, 2, { type: THREE.HalfFloatType, depthTexture: sceneDepthTex, depthBuffer: true });
+function resizeSceneRT() { const pr = renderer.getPixelRatio() * SCENE_SCALE; sceneRT.setSize(Math.max(2, Math.floor(window.innerWidth * pr)), Math.max(2, Math.floor(window.innerHeight * pr))); }
+resizeSceneRT();
 const reflCam = new THREE.PerspectiveCamera();
 const reflTexMat = new THREE.Matrix4();
 const waterMat = new THREE.ShaderMaterial({
-  transparent: true, fog: true, side: THREE.DoubleSide,
+  transparent: false, fog: true, side: THREE.DoubleSide,
   uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
     uTime: { value: 0 },
     tReflect: { value: null },
     tNormal: { value: null },
     uTexMat: { value: new THREE.Matrix4() },
     uReflStrength: { value: LOW_FX ? 0.6 : 1 },
+    tScene: { value: null }, tDepth: { value: null },
+    uNear: { value: 0.1 }, uFar: { value: 5000 }, uRes: { value: new THREE.Vector2(1, 1) },
+    uAbsorb: { value: new THREE.Vector3(0.62, 0.3, 0.16) },
+    uScatter: { value: new THREE.Color(0x1a7f8e) },
     uDeep: { value: new THREE.Color(0x0b4f74) },
     uShallow: { value: new THREE.Color(0x1d9ab8) },
     uSky: { value: new THREE.Color(0xd4ecf8) },
     uSun: { value: SUN_DIR.clone() },
   }]),
-  vertexShader: `uniform float uTime; uniform mat4 uTexMat; varying vec3 vWorldPos; varying vec3 vNormal; varying vec4 vRefl;
+  vertexShader: `uniform float uTime; uniform mat4 uTexMat; varying vec3 vWorldPos; varying vec3 vNormal; varying vec4 vRefl; varying float vViewZ;
     #include <fog_pars_vertex>
-    ${GLSL_WAVE}
+    ${GLSL_GERSTNER}
     void main(){
       vec3 p = position; float t = uTime;
-      p.y += waveH(p.xz, t);
-      float e = 0.2;
-      float hx = waveH(p.xz + vec2(e,0.0), t) - waveH(p.xz - vec2(e,0.0), t);
-      float hz = waveH(p.xz + vec2(0.0,e), t) - waveH(p.xz - vec2(0.0,e), t);
-      vNormal = normalize(vec3(-hx/(2.0*e), 1.0, -hz/(2.0*e)));
+      vec3 disp, nrm; gerstner(p.xz, t, disp, nrm);
+      p += disp;
+      vNormal = nrm;
       vec4 wp = modelMatrix * vec4(p, 1.0); vWorldPos = wp.xyz;
       vRefl = uTexMat * (modelMatrix * vec4(position.x, 0.0, position.z, 1.0));
       vec4 mvPosition = viewMatrix * wp; gl_Position = projectionMatrix * mvPosition;
+      vViewZ = mvPosition.z;
       #include <fog_vertex>
     }`,
-  fragmentShader: `uniform vec3 uDeep, uShallow, uSky, uSun; uniform float uTime, uReflStrength;
-    uniform sampler2D tReflect, tNormal;
-    varying vec3 vWorldPos; varying vec3 vNormal; varying vec4 vRefl;
+  fragmentShader: `uniform vec3 uDeep, uShallow, uSky, uSun, uAbsorb, uScatter; uniform float uTime, uReflStrength, uNear, uFar; uniform vec2 uRes;
+    uniform sampler2D tReflect, tNormal, tScene, tDepth;
+    varying vec3 vWorldPos; varying vec3 vNormal; varying vec4 vRefl; varying float vViewZ;
     #include <fog_pars_fragment>
+    #include <packing>
+    float sceneViewZ(vec2 uv){ return perspectiveDepthToViewZ(texture2D(tDepth, uv).x, uNear, uFar); }
     void main(){
       vec3 V = normalize(cameraPosition - vWorldPos);
       float dist = length(cameraPosition - vWorldPos);
@@ -909,14 +946,30 @@ const waterMat = new THREE.ShaderMaterial({
       vec3 R = reflect(-V, N);
       float sd = max(dot(R, uSun), 0.0);
       float spec = pow(sd, 320.0) * 2.6 + pow(sd, 28.0) * 0.14;
-      vec3 col = mix(base, refl, clamp((0.12 + fres * 0.82) * uReflStrength, 0.0, 1.0)) + vec3(spec);
-      float alpha = mix(0.55, 0.98, fres);
-      // 파도 꼭대기 포말
+      // ---- 수심: 수면 아래 장면 깊이와 수면 깊이의 차 ----
+      vec2 suv = gl_FragCoord.xy / uRes;
+      float depthBehind = max(0.0, vViewZ - sceneViewZ(suv));
+      // 굴절: 깊을수록 많이 휘되, 수면 위 물체를 끌어오지 않도록 검사
+      vec2 ruv = suv + N.xz * 0.045 * clamp(depthBehind, 0.0, 2.5) / 2.5;
+      float depthR = vViewZ - sceneViewZ(ruv);
+      if (depthR < 0.0) { ruv = suv; depthR = depthBehind; }
+      vec3 refr = texture2D(tScene, ruv).rgb;
+      // 빛 흡수(빨강이 먼저 사라짐)와 산란색 (물속 깊어질수록 짙은 바다색)
+      float dpath = depthR + depthR * (1.0 - ndv) * 1.5; // 비스듬히 볼수록 경로 길어짐
+      vec3 absorb = exp(-dpath * uAbsorb);
+      vec3 under = refr * absorb + base * (1.0 - exp(-dpath * 0.55));
+      // 마루 투과광(서브서피스): 마루를 역광으로 볼 때 청록으로 빛남
+      float sss = crest * pow(max(dot(V, -uSun) * 0.5 + 0.5, 0.0), 2.0) * max(uSun.y, 0.0);
+      under += uScatter * sss * 0.35;
+      vec3 col = mix(under, refl, clamp((0.06 + fres * 0.9) * uReflStrength, 0.0, 1.0)) + vec3(spec);
+      // 파도 꼭대기 포말 + 해안/선체 접선 포말
       float fn = sin(vWorldPos.x * 6.0 + uTime * 2.2) * sin(vWorldPos.z * 5.0 - uTime * 1.7) + 0.5 * sin(vWorldPos.x * 13.0 - vWorldPos.z * 9.0 + uTime * 3.0);
       float foam = smoothstep(0.3, 0.58, vWorldPos.y) * smoothstep(-0.2, 0.9, fn);
-      col = mix(col, vec3(0.93, 0.97, 1.0), foam * 0.7);
-      alpha = mix(alpha, 1.0, foam * 0.7);
-      gl_FragColor = vec4(col, alpha);
+      float edge = 1.0 - smoothstep(0.0, 0.45, depthBehind);
+      float ef = edge * (0.55 + 0.45 * sin(vWorldPos.x * 9.0 + vWorldPos.z * 7.0 + uTime * 2.5)) * (0.5 + 0.5 * texture2D(tNormal, vWorldPos.xz * 0.6 + uTime * 0.05).x);
+      foam = clamp(foam + ef * 0.9, 0.0, 1.0);
+      col = mix(col, vec3(0.93, 0.97, 1.0), foam * 0.75);
+      gl_FragColor = vec4(col, 1.0);
       #include <fog_fragment>
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
@@ -924,9 +977,19 @@ const waterMat = new THREE.ShaderMaterial({
 });
 waterMat.uniforms.tReflect.value = reflRT.texture;
 waterMat.uniforms.tNormal.value = waterNormalTex;
+waterMat.uniforms.tScene.value = sceneRT.texture;
+waterMat.uniforms.tDepth.value = sceneDepthTex;
+waterMat.uniforms.uNear.value = camera.near; waterMat.uniforms.uFar.value = camera.far;
+function renderSceneBelow() {
+  waterMat.uniforms.uRes.value.set(sceneRT.width, sceneRT.height);
+  water.visible = false;
+  renderer.setRenderTarget(sceneRT); renderer.clear(); renderer.render(scene, camera);
+  renderer.setRenderTarget(null);
+  water.visible = true;
+}
 waterMat.uniforms.uTexMat.value = reflTexMat;
 const water = new THREE.Mesh(waterGeo, waterMat);
-water.renderOrder = 2;
+water.renderOrder = 0;
 scene.add(water);
 // 거울 카메라 렌더 (Reflector 기법: 카메라를 수면에 대칭시키고 사선 클리핑)
 const _rf = { plane: new THREE.Plane(), normal: new THREE.Vector3(0, 1, 0), camPos: new THREE.Vector3(), view: new THREE.Vector3(), target: new THREE.Vector3(), look: new THREE.Vector3(), rot: new THREE.Matrix4(), clip: new THREE.Vector4(), q: new THREE.Vector4() };
@@ -1309,6 +1372,9 @@ class Fish {
     this.modeTimer = 0;
     this.pos = new THREE.Vector3();
     this.target = new THREE.Vector3();
+    this.speedCur = this.speed * 0.6; this.roll = 0; this.pitch = 0; this.vy = 0;
+    this.ph = rand(0, 100); this.leader = null; this.offset = new THREE.Vector3();
+    this.mesh.rotation.order = 'YZX';
     scene.add(this.mesh);
   }
   placeRandom(avoid) {
@@ -1329,44 +1395,71 @@ class Fish {
     }
     this.modeTimer = rand(4, 9);
   }
-  steer(dt, tx, tz, speed, turnRate = 1.6) {
+  // 목표를 향해 선회(각속도 제한)하고, 속도는 가속도로 부드럽게 바뀜. 선회 시 몸을 기울임.
+  steer(dt, tx, tz, speedWant, turnRate = 1.6, wobble = 1) {
     const dx = tx - this.pos.x, dz = tz - this.pos.z;
-    const want = Math.atan2(-dz, dx);
+    let want = Math.atan2(-dz, dx);
+    // 유영 중 자연스러운 흔들림(좌우로 조금씩 방향을 바꿈)
+    want += wobble * (Math.sin(S.t * 0.7 + this.ph) * 0.25 + Math.sin(S.t * 1.9 + this.ph * 1.3) * 0.08);
     let d = want - this.angle; d = Math.atan2(Math.sin(d), Math.cos(d));
-    this.angle += clamp(d, -turnRate * dt, turnRate * dt);
-    this.pos.x += Math.cos(this.angle) * speed * dt;
-    this.pos.z -= Math.sin(this.angle) * speed * dt;
+    const turn = clamp(d * 3, -turnRate, turnRate);
+    this.angle += turn * dt;
+    const accel = speedWant > this.speedCur ? 2.5 : 1.6;
+    this.speedCur += clamp(speedWant - this.speedCur, -accel * dt, accel * dt);
+    this.pos.x += Math.cos(this.angle) * this.speedCur * dt;
+    this.pos.z -= Math.sin(this.angle) * this.speedCur * dt;
+    this.roll = lerp(this.roll, -turn * 0.28, dt * 4);
     return Math.hypot(dx, dz);
   }
+  moveY(dt, ty, rate = 0.8) {
+    const want = clamp((ty - this.pos.y) * rate, -1.2, 1.2);
+    this.vy = lerp(this.vy, want, dt * 2.5);
+    this.pos.y += this.vy * dt;
+    this.pitch = lerp(this.pitch, Math.atan2(this.vy, Math.max(0.4, this.speedCur)) * 0.9, dt * 4);
+  }
+  applyPose() { this.mesh.position.copy(this.pos); this.mesh.rotation.set(this.roll, this.angle, this.pitch); }
   update(dt, t) {
     const m = this.mesh;
     let swimSpeed = this.speed * 2.2, amp = 0.05;
     if (this.mode === 'wander' || this.mode === 'flee') {
-      const sp = this.mode === 'flee' ? this.speed * 2.4 : this.speed;
-      const d = this.steer(dt, this.target.x, this.target.z, sp);
-      this.pos.y = lerp(this.pos.y, this.target.y, dt * 0.8);
-      this.modeTimer -= dt;
-      if (d < 1.5 || this.modeTimer <= 0) { if (this.mode === 'flee') this.mode = 'wander'; this.newTarget(); }
-      m.position.copy(this.pos);
-      m.rotation.set(0, this.angle, Math.sin(t * 1.3 + this.uni.t.value) * 0.04);
-      swimSpeed = sp * 2.2; amp = this.mode === 'flee' ? 0.09 : 0.05;
+      if (this.leader && (this.leader.mode !== 'wander' || !fishes.includes(this.leader))) this.leader = null;
+      let sp, tx, tz, ty;
+      if (this.leader && this.mode === 'wander') {
+        // 무리: 리더 주변의 자기 자리를 따라감
+        const L = this.leader; tx = L.pos.x + this.offset.x; tz = L.pos.z + this.offset.z; ty = L.pos.y + this.offset.y;
+        const d = Math.hypot(tx - this.pos.x, tz - this.pos.z);
+        sp = L.speedCur * clamp(0.7 + d * 0.5, 0.7, 1.6);
+        this.steer(dt, tx, tz, sp, 2.2, 0.3);
+        this.moveY(dt, ty, 1.2);
+      } else {
+        // 혼자 유영: 천천히 가다가 가끔 글라이드(감속)하고 다시 밀어냄
+        const glide = 0.55 + 0.45 * Math.max(0, Math.sin(t * 0.45 + this.ph));
+        sp = this.mode === 'flee' ? this.speed * 2.4 : this.speed * glide;
+        const d = this.steer(dt, this.target.x, this.target.z, sp, this.mode === 'flee' ? 3.5 : 1.4);
+        this.moveY(dt, this.target.y, 0.8);
+        this.modeTimer -= dt;
+        if (d < 1.5 || this.modeTimer <= 0) { if (this.mode === 'flee') this.mode = 'wander'; this.newTarget(); }
+      }
+      this.applyPose();
     } else if (this.mode === 'approach') {
-      const d = this.steer(dt, bobber.position.x, bobber.position.z, this.speed * 2.2 + 2, 3.0);
-      this.pos.y = lerp(this.pos.y, -0.9 - this.L * 0.3, dt * 1.2);
-      m.position.copy(this.pos); m.rotation.set(0, this.angle, 0);
-      swimSpeed = this.speed * 4; amp = 0.08;
+      const d = this.steer(dt, bobber.position.x, bobber.position.z, this.speed * 2.2 + 2, 3.0, 0.4);
+      this.moveY(dt, -0.9 - this.L * 0.3, 1.2);
+      this.applyPose();
       if (d < 0.9 + this.L * 0.3) { this.mode = 'nibble'; this.modeTimer = 0; }
     } else if (this.mode === 'nibble') {
       this.modeTimer += dt;
       const r = 0.35 + this.L * 0.3, a = this.modeTimer * 1.2;
-      this.pos.set(bobber.position.x + Math.cos(a) * r, -0.8 - this.L * 0.25, bobber.position.z + Math.sin(a) * r);
-      this.angle = -a - Math.PI / 2;
-      m.position.copy(this.pos); m.rotation.set(0, this.angle, 0);
-      swimSpeed = 6; amp = 0.06;
+      const tx = bobber.position.x + Math.cos(a + 0.5) * r, tz = bobber.position.z + Math.sin(a + 0.5) * r;
+      this.steer(dt, tx, tz, 1.2 + this.L, 4.0, 0.2);
+      this.moveY(dt, -0.8 - this.L * 0.25, 1.5);
+      this.applyPose();
     } else if (this.mode === 'hooked') {
-      swimSpeed = fight && fight.running ? 22 : 10; amp = fight && fight.running ? 0.14 : 0.08;
-    } else if (this.mode === 'caught') { swimSpeed = 9; amp = 0.1; }
-    this.uni.t.value += dt * swimSpeed;
+      this.speedCur = fight && fight.running ? this.speed * 2 : this.speed * 0.5;
+    } else if (this.mode === 'caught') { this.speedCur = 1.5; }
+    // 꼬리 박자: 빠를수록, 작은 물고기일수록 빠르게. 진폭은 속도에 비례.
+    const beat = (this.mode === 'hooked' ? (fight && fight.running ? 16 : 7) : this.speedCur * 3.2 / Math.sqrt(this.L + 0.3));
+    amp = this.mode === 'hooked' ? (fight && fight.running ? 0.14 : 0.08) : clamp(0.025 + this.speedCur / (this.speed * 2.4) * 0.07, 0.02, 0.1);
+    this.uni.t.value += dt * beat;
     this.uni.a.value = lerp(this.uni.a.value, amp, dt * 4);
   }
   dispose() { scene.remove(this.mesh); this.mesh.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); }
@@ -1376,6 +1469,16 @@ function spawnFish(avoid) {
   const f = new Fish(sp, rollWeight(sp));
   f.placeRandom(avoid);
   fishes.push(f);
+  // 소형 회유어는 무리를 지어 다님
+  if (sp.school && Math.random() < 0.75 && fishes.length < 26) {
+    const n = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      const m = new Fish(sp, rollWeight(sp) * rand(0.8, 1.1));
+      m.leader = f; m.offset.set(rand(-1.6, 1.6), rand(-0.4, 0.4), rand(-1.6, 1.6));
+      m.pos.copy(f.pos).add(m.offset); m.angle = f.angle; m.newTarget(); m.applyPose();
+      fishes.push(m);
+    }
+  }
   return f;
 }
 
@@ -1570,100 +1673,150 @@ function fabric(hex, kind, extra = {}) {
 function buildCharacter(c) {
   const g = new THREE.Group();
   const s = c.scale || 1;
+  const B = Object.assign({ shoulder: 1, chest: 1, waist: 1, hip: 1, arm: 1, leg: 1, head: 1, neck: 1 }, c.body || {});
   const M = (color, rough = 0.8, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: rough, ...extra });
-  const skin = new THREE.MeshPhysicalMaterial({ color: c.skin, roughness: 0.62, clearcoat: 0.08, clearcoatRoughness: 0.5 });
+  const skin = new THREE.MeshPhysicalMaterial({ color: c.skin, roughness: 0.6, clearcoat: 0.1, clearcoatRoughness: 0.45 });
   const top = fabric(c.shirt, c.topKind || 'knit'), pants = fabric(c.pants, c.pantsKind || 'denim');
-  const hair = M(c.hair, 0.6), dark = M(0x1a1a20, 0.6), shoe = M(0x24242a, 0.6);
+  const legMat = c.leggings ? fabric(c.leggings, 'cotton') : skin;
+  const hair = new THREE.MeshPhysicalMaterial({ color: c.hair, roughness: 0.45, clearcoat: 0.35, clearcoatRoughness: 0.3 });
+  const dark = M(0x1a1a20, 0.6), shoe = M(c.shoe || 0x24242a, 0.55);
   const add = (geo, mat, x, y, z, parent = g) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
   const lathe = (pts, seg = 20) => new THREE.LatheGeometry(pts.map(([rr, y]) => new THREE.Vector2(rr, y)), seg);
 
   const body = new THREE.Group(); g.add(body);
-  // 다리 (7.5등신 기준: 가랑이 0.82, 무릎 0.46, 발목 0.07)
+  // ---- 다리 ----
   const legs = {};
   const bootMat = M(0x2b3a30, 0.5), bootDark = M(0x1f2a24, 0.55);
+  const thighR = 0.09 * B.hip, shinR = 0.07 * B.leg;
   for (const [key, sx] of [['L', -1], ['R', 1]]) {
-    const hip = new THREE.Group(); hip.position.set(sx * 0.1, 0.84, 0); body.add(hip);
-    const thigh = add(lathe([[0.09, 0], [0.095, -0.08], [0.085, -0.25], [0.07, -0.37]], 14), pants, 0, 0, 0, hip);
+    const hip = new THREE.Group(); hip.position.set(sx * 0.1 * B.hip, 0.84, 0); body.add(hip);
+    if (c.shorts) {
+      add(lathe([[thighR, 0], [thighR * 1.05, -0.08], [thighR * 0.98, -c.shorts]], 14), pants, 0, 0, 0, hip);
+      add(new THREE.TorusGeometry(thighR * 0.98, 0.012, 6, 14), pants, 0, -c.shorts, 0, hip).rotation.x = Math.PI / 2;
+      add(lathe([[thighR * 0.95, -c.shorts + 0.01], [thighR * 0.9, -0.25], [thighR * 0.78, -0.37]], 14), legMat, 0, 0, 0, hip);
+    } else add(lathe([[thighR, 0], [thighR * 1.05, -0.08], [thighR * 0.95, -0.25], [thighR * 0.78, -0.37]], 14), pants, 0, 0, 0, hip);
     const knee = new THREE.Group(); knee.position.set(0, -0.38, 0); hip.add(knee);
-    const shinMat = c.boots ? bootMat : pants;
-    add(lathe([[0.072, 0.02], [0.07, -0.1], [0.055, -0.28], [0.05, -0.36]], 14), shinMat, 0, 0, 0, knee);
-    if (c.boots) add(new THREE.TorusGeometry(0.072, 0.012, 6, 14), bootDark, 0, -0.02, 0, knee).rotation.x = Math.PI / 2;
-    else add(new THREE.TorusGeometry(0.055, 0.01, 6, 14), pants, 0, -0.33, 0, knee).rotation.x = Math.PI / 2; // 바짓단
+    const shinMat = c.boots ? bootMat : (c.shorts ? legMat : pants);
+    add(lathe([[shinR * 1.03, 0.02], [shinR, -0.1], [shinR * 0.8, -0.28], [shinR * 0.72, -0.36]], 14), shinMat, 0, 0, 0, knee);
+    if (c.boots) add(new THREE.TorusGeometry(shinR * 1.03, 0.012, 6, 14), bootDark, 0, -0.02, 0, knee).rotation.x = Math.PI / 2;
+    else if (!c.shorts) add(new THREE.TorusGeometry(shinR * 0.8, 0.01, 6, 14), pants, 0, -0.33, 0, knee).rotation.x = Math.PI / 2;
     const foot = add(new THREE.BoxGeometry(0.1, 0.065, 0.25), c.boots ? bootDark : shoe, 0, -0.4, -0.05, knee);
-    add(new THREE.BoxGeometry(0.105, 0.018, 0.26), dark, 0, -0.44, -0.05, knee);
-    if (!c.boots) add(new THREE.BoxGeometry(0.09, 0.03, 0.06), M(0xe9e4da, 0.8), 0, -0.405, -0.17, knee); // 신발 앞코
+    add(new THREE.BoxGeometry(0.105, 0.018, 0.26), c.boots ? dark : M(c.sole || 0xe9e4da, 0.7), 0, -0.44, -0.05, knee);
+    if (!c.boots) { add(new THREE.BoxGeometry(0.09, 0.03, 0.07), M(c.sole || 0xe9e4da, 0.8), 0, -0.405, -0.17, knee); add(new THREE.BoxGeometry(0.102, 0.02, 0.2), M(c.sole || 0xe9e4da, 0.8), 0, -0.43, -0.03, knee); }
     legs[key] = { hip, knee, foot };
   }
-  // 골반/허리/몸통 (회전체로 어깨-가슴-허리 곡선)
-  const torsoPts = [[0.13, 0.78], [0.155, 0.84], [0.15, 0.96], [0.145, 1.06], [0.165, 1.2], [0.185, 1.32], [0.195, 1.4], [0.17, 1.46], [0.075, 1.5], [0.0, 1.5]];
-  const torso = add(lathe(torsoPts, 22), top, 0, 0, 0, body); torso.scale.z = 0.66;
-  // 상의 디테일: 밑단, 지퍼/단추, 깃, 소매
-  add(new THREE.TorusGeometry(0.15, 0.014, 6, 24), top, 0, 0.85, 0, body).rotation.x = Math.PI / 2;
-  if (c.topKind === 'knit' || c.topKind === 'wool') { const z = add(new THREE.BoxGeometry(0.012, 0.52, 0.006), M(0x9aa0a8, 0.4, { metalness: 0.6 }), 0, 1.14, -0.135, body); z.rotation.x = 0.05; }
-  else for (const y of [1.36, 1.26, 1.16, 1.06]) add(new THREE.SphereGeometry(0.009, 6, 5), M(0xd9d4c8, 0.5), 0, y, -0.128 - (y - 1.06) * 0.03, body);
-  const collar = add(new THREE.TorusGeometry(0.085, 0.022, 8, 18, Math.PI * 1.55), top, 0, 1.49, 0.0, body); collar.rotation.set(Math.PI / 2, 0, -Math.PI * 0.775); collar.scale.set(1.1, 1, 1);
-  if (c.pocket) add(new THREE.BoxGeometry(0.085, 0.09, 0.01), top, -0.085, 1.28, -0.142, body);
-  add(new THREE.BoxGeometry(0.3, 0.026, 0.02), M(0x3b2a1a, 0.6), 0, 0.885, -0.11, body); // 벨트 앞부분
-  add(new THREE.BoxGeometry(0.04, 0.03, 0.012), M(0xc9b27a, 0.3, { metalness: 0.8 }), 0, 0.885, -0.125, body);
-  // 구명조끼 (나일론, 반사띠)
+  // ---- 몸통 (어깨·가슴·허리·골반 비율 반영) ----
+  const topLen = c.crop ? 1.06 : 0.84; // 크롭탑은 허리 위에서 끝남
+  const torsoPts = [[0.13 * B.hip, 0.78], [0.155 * B.hip, 0.84], [0.148 * B.waist, 0.96], [0.142 * B.waist, 1.06], [0.165 * B.chest, 1.2], [0.185 * B.chest, 1.32], [0.195 * B.shoulder, 1.4], [0.17 * B.shoulder, 1.46], [0.075, 1.5], [0.0, 1.5]];
+  if (c.crop) {
+    // 노출된 허리·골반은 피부, 그 위는 상의
+    const lower = torsoPts.filter(p => p[1] <= 1.06); lower.push([0.142 * B.waist, 1.07]);
+    const lo = add(lathe(lower, 22), skin, 0, 0, 0, body); lo.scale.z = 0.66;
+    const upper = torsoPts.filter(p => p[1] >= 1.06); upper.unshift([0.15 * B.waist, 1.05]);
+    const up = add(lathe(upper, 22), top, 0, 0, 0, body); up.scale.z = 0.66;
+    add(new THREE.TorusGeometry(0.15 * B.waist, 0.012, 6, 24), top, 0, 1.06, 0, body).rotation.x = Math.PI / 2;
+    const belt = add(new THREE.TorusGeometry(0.152 * B.hip, 0.016, 6, 24), M(0x3b2a1a, 0.6), 0, 0.86, 0, body); belt.rotation.x = Math.PI / 2; belt.scale.z = 0.7;
+  } else {
+    const torso = add(lathe(torsoPts, 22), top, 0, 0, 0, body); torso.scale.z = 0.66;
+    add(new THREE.TorusGeometry(0.15 * B.hip, 0.014, 6, 24), top, 0, 0.85, 0, body).rotation.x = Math.PI / 2;
+    add(new THREE.BoxGeometry(0.3 * B.hip, 0.026, 0.02), M(0x3b2a1a, 0.6), 0, 0.885, -0.11 * B.hip, body);
+    add(new THREE.BoxGeometry(0.04, 0.03, 0.012), M(0xc9b27a, 0.3, { metalness: 0.8 }), 0, 0.885, -0.125 * B.hip, body);
+  }
+  if (c.bust) for (const sx of [-1, 1]) { const b = add(new THREE.SphereGeometry(0.05 * c.bust, 12, 10), top, sx * 0.052, 1.3, -0.075 * B.chest, body); b.scale.set(1, 0.85, 0.7); }
+  if (c.topKind === 'knit' || c.topKind === 'wool') { const z = add(new THREE.BoxGeometry(0.012, c.crop ? 0.3 : 0.52, 0.006), M(0x9aa0a8, 0.4, { metalness: 0.6 }), 0, c.crop ? 1.26 : 1.14, -0.135 * B.chest, body); z.rotation.x = 0.05; }
+  else if (c.topKind === 'cotton' && !c.tank) for (const y of [1.36, 1.26, 1.16, 1.06]) add(new THREE.SphereGeometry(0.009, 6, 5), M(0xd9d4c8, 0.5), 0, y, -0.128 * B.chest - (y - 1.06) * 0.03, body);
+  if (!c.tank) { const collar = add(new THREE.TorusGeometry(0.085 * B.neck, 0.022, 8, 18, Math.PI * 1.55), top, 0, 1.49, 0.0, body); collar.rotation.set(Math.PI / 2, 0, -Math.PI * 0.775); collar.scale.set(1.1, 1, 1); }
+  if (c.pocket) add(new THREE.BoxGeometry(0.085, 0.09, 0.01), top, -0.085, 1.28, -0.142 * B.chest, body);
+  if (c.hoodie) { const hood = add(new THREE.SphereGeometry(0.11, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.6), top, 0, 1.44, 0.07, body); hood.rotation.x = 1.3; hood.scale.set(1.25, 1, 1); for (const sx of [-1, 1]) add(new THREE.CylinderGeometry(0.006, 0.006, 0.16, 5), M(0xe8e2d6, 0.9), sx * 0.04, 1.36, -0.14 * B.chest, body); }
   if (c.vest) {
     const vm = fabric(c.vest, 'nylon');
-    for (const sx of [-1, 1]) { const p = add(new THREE.BoxGeometry(0.13, 0.3, 0.075), vm, sx * 0.095, 1.22, -0.125, body); p.rotation.y = sx * 0.12; }
-    add(new THREE.BoxGeometry(0.36, 0.32, 0.07), vm, 0, 1.22, 0.11, body);
-    for (const sx of [-1, 1]) { add(new THREE.BoxGeometry(0.06, 0.1, 0.24), vm, sx * 0.14, 1.42, 0, body); add(new THREE.BoxGeometry(0.025, 0.016, 0.36), dark, sx * 0.08, 1.07, 0, body); add(new THREE.BoxGeometry(0.13, 0.016, 0.008), M(0xdcdcd6, 0.35), sx * 0.095, 1.13, -0.165, body); }
-    add(new THREE.BoxGeometry(0.04, 0.025, 0.02), dark, 0, 1.2, -0.17, body);
+    for (const sx of [-1, 1]) { const p = add(new THREE.BoxGeometry(0.13, 0.3, 0.075), vm, sx * 0.095 * B.chest, 1.22, -0.125 * B.chest, body); p.rotation.y = sx * 0.12; }
+    add(new THREE.BoxGeometry(0.36 * B.chest, 0.32, 0.07), vm, 0, 1.22, 0.11 * B.chest, body);
+    for (const sx of [-1, 1]) { add(new THREE.BoxGeometry(0.06, 0.1, 0.24), vm, sx * 0.14 * B.shoulder, 1.42, 0, body); add(new THREE.BoxGeometry(0.025, 0.016, 0.36), dark, sx * 0.08, 1.07, 0, body); add(new THREE.BoxGeometry(0.13, 0.016, 0.008), M(0xdcdcd6, 0.35), sx * 0.095 * B.chest, 1.13, -0.165 * B.chest, body); }
+    add(new THREE.BoxGeometry(0.04, 0.025, 0.02), dark, 0, 1.2, -0.17 * B.chest, body);
   }
-  // 목 / 머리 (머리 지름 0.23 ≈ 키의 1/7.5)
-  add(new THREE.CylinderGeometry(0.048, 0.056, 0.1, 10), skin, 0, 1.53, 0, body);
-  const headG = new THREE.Group(); headG.position.set(0, 1.64, 0); body.add(headG);
+  // ---- 목 / 머리 ----
+  add(new THREE.CylinderGeometry(0.048 * B.neck, 0.056 * B.neck, 0.1, 10), skin, 0, 1.53, 0, body);
+  const headG = new THREE.Group(); headG.position.set(0, 1.64, 0); headG.scale.setScalar(B.head); body.add(headG);
   const head = add(new THREE.SphereGeometry(0.115, 22, 18), skin, 0, 0, 0, headG); head.scale.set(0.9, 1.1, 0.95);
-  add(new THREE.BoxGeometry(0.1, 0.07, 0.09), skin, 0, -0.085, -0.02, headG).scale.set(1, 1, 1); // 턱
+  const jaw = add(new THREE.SphereGeometry(0.08, 14, 10), skin, 0, -0.07, -0.015, headG); jaw.scale.set(c.jaw || 1, 0.75, 0.9);
   for (const sx of [-1, 1]) { const ear = add(new THREE.SphereGeometry(0.024, 8, 6), skin, sx * 0.105, -0.01, 0.0, headG); ear.scale.set(0.5, 1, 0.8); }
-  const white = M(0xf4f2ee, 0.35), pupil = M(0x1b1a1f, 0.25), brow = M(c.hair, 0.8);
+  if (c.earrings) for (const sx of [-1, 1]) { const e = add(new THREE.TorusGeometry(0.014, 0.0025, 5, 12), M(0xe6c86a, 0.25, { metalness: 0.9 }), sx * 0.108, -0.045, 0.0, headG); e.rotation.y = Math.PI / 2; }
+  const white = M(0xf6f4f0, 0.3), pupil = M(c.eyeColor || 0x1b1a1f, 0.2), brow = M(c.hair, 0.8);
+  const es = c.eyeScale || 1;
   for (const sx of [-1, 1]) {
-    const e = add(new THREE.SphereGeometry(0.018, 10, 8), white, sx * 0.04, 0.012, -0.098, headG); e.scale.set(1, 0.85, 0.5);
-    add(new THREE.SphereGeometry(0.0095, 8, 6), pupil, sx * 0.04, 0.012, -0.108, headG);
-    const b = add(new THREE.BoxGeometry(0.042, 0.008, 0.012), brow, sx * 0.04, 0.045, -0.103, headG); b.rotation.z = sx * -0.15;
+    const e = add(new THREE.SphereGeometry(0.018 * es, 12, 10), white, sx * 0.04, 0.012, -0.098, headG); e.scale.set(1, 0.85, 0.5);
+    const iris = add(new THREE.SphereGeometry(0.0105 * es, 10, 8), pupil, sx * 0.04, 0.012, -0.106, headG);
+    add(new THREE.SphereGeometry(0.004 * es, 6, 5), M(0xffffff, 0.2), sx * 0.04 - sx * 0.004, 0.016, -0.115, headG);
+    const b = add(new THREE.BoxGeometry(0.042, 0.007, 0.012), brow, sx * 0.04, 0.045 + (es - 1) * 0.02, -0.103, headG); b.rotation.z = sx * (c.browAngle ?? -0.15);
+    if (c.lashes) { const l = add(new THREE.BoxGeometry(0.036 * es, 0.005, 0.01), dark, sx * 0.04, 0.012 + 0.016 * es, -0.108, headG); l.rotation.z = sx * -0.2; }
   }
-  if (c.glasses) { for (const sx of [-1, 1]) add(new THREE.BoxGeometry(0.05, 0.03, 0.014), M(0x15181c, 0.2, { metalness: 0.4 }), sx * 0.04, 0.012, -0.11, headG); add(new THREE.BoxGeometry(0.028, 0.006, 0.008), dark, 0, 0.016, -0.11, headG); }
-  const nose = add(new THREE.SphereGeometry(0.016, 8, 6), skin, 0, -0.018, -0.115, headG); nose.scale.set(0.75, 1, 1);
-  const mouth = add(new THREE.TorusGeometry(0.022, 0.005, 5, 10, Math.PI), M(0x8a4a44, 0.7), 0, -0.05, -0.105, headG); mouth.rotation.set(0, 0, Math.PI);
-  if (c.beard) { const b = add(new THREE.SphereGeometry(0.095, 14, 10), M(c.beard, 0.95), 0, -0.07, -0.015, headG); b.scale.set(0.95, 0.72, 0.85); add(new THREE.BoxGeometry(0.07, 0.016, 0.02), M(c.beard, 0.95), 0, -0.033, -0.11, headG); }
-  // 머리카락 / 모자
-  const cap = add(new THREE.SphereGeometry(0.12, 22, 12, 0, Math.PI * 2, 0, Math.PI * 0.55), hair, 0, 0.005, 0, headG); cap.scale.set(0.93, 1.08, 0.98);
-  if (c.hat === 'short') {
-    const bangs = add(new THREE.SphereGeometry(0.11, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.35), hair, 0, 0.035, -0.025, headG); bangs.rotation.x = -0.6;
-    for (const sx of [-1, 1]) add(new THREE.BoxGeometry(0.02, 0.08, 0.07), hair, sx * 0.108, 0.0, 0.015, headG);
-  } else if (c.hat === 'cap') {
+  if (c.glasses === 'up') { // 머리 위에 올린 선글라스
+    for (const sx of [-1, 1]) add(new THREE.BoxGeometry(0.05, 0.028, 0.014), M(0x15181c, 0.15, { metalness: 0.5 }), sx * 0.04, 0.12, -0.06, headG).rotation.x = -0.8;
+    add(new THREE.BoxGeometry(0.11, 0.006, 0.006), dark, 0, 0.125, -0.052, headG);
+  } else if (c.glasses) { for (const sx of [-1, 1]) add(new THREE.BoxGeometry(0.05, 0.03, 0.014), M(0x15181c, 0.2, { metalness: 0.4 }), sx * 0.04, 0.012, -0.11, headG); add(new THREE.BoxGeometry(0.028, 0.006, 0.008), dark, 0, 0.016, -0.11, headG); }
+  const nose = add(new THREE.SphereGeometry(0.014 * (c.nose || 1), 8, 6), skin, 0, -0.018, -0.115, headG); nose.scale.set(0.75, 1, 1);
+  const mouth = add(new THREE.TorusGeometry(0.02, c.lips ? 0.007 : 0.0045, 6, 12, Math.PI), M(c.lipColor || 0x8a4a44, 0.55), 0, -0.05, -0.105, headG); mouth.rotation.set(0, 0, Math.PI);
+  if (c.lips) add(new THREE.SphereGeometry(0.012, 8, 6), M(c.lipColor, 0.5), 0, -0.056, -0.107, headG).scale.set(1.6, 0.6, 0.6);
+  if (c.blush) for (const sx of [-1, 1]) { const ch = add(new THREE.SphereGeometry(0.022, 8, 6), M(0xe9a0a0, 0.9, { transparent: true, opacity: 0.4 }), sx * 0.062, -0.03, -0.088, headG); ch.scale.set(1, 0.6, 0.4); }
+  if (c.beard) { const b = add(new THREE.SphereGeometry(0.095, 14, 10), M(c.beard, 0.95), 0, -0.07, -0.015, headG); b.scale.set(0.95, 0.72, 0.85); }
+  if (c.stubble) { const st = add(new THREE.SphereGeometry(0.096, 14, 10), M(0x2a2420, 0.95, { transparent: true, opacity: 0.35 }), 0, -0.058, -0.012, headG); st.scale.set(0.93, 0.6, 0.86); }
+  // ---- 머리카락 / 모자 ----
+  // 머리카락 기본 쉘: 정수리는 전체, 옆·뒤는 아래까지, 앞은 헤어라인(눈썹 위)에서 끝남
+  const hairShell = (r, len = 0.62) => {
+    const top = add(new THREE.SphereGeometry(r, 22, 10, 0, Math.PI * 2, 0, Math.PI * 0.3), hair, 0, 0.005, 0, headG); top.scale.set(0.95, 1.08, 0.98);
+    const back = add(new THREE.SphereGeometry(r, 22, 12, -Math.PI * 0.22, Math.PI * 1.44, Math.PI * 0.28, Math.PI * (len - 0.28)), hair, 0, 0.005, 0.004, headG); back.scale.set(0.95, 1.08, 0.98);
+    return top;
+  };
+  hairShell(0.12, c.hat === 'twin' || c.hat === 'long' ? 0.66 : 0.58);
+  const H = c.hat;
+  if (H === 'swept') {
+    const front = add(new THREE.SphereGeometry(0.1, 16, 10), hair, 0.015, 0.085, -0.04, headG); front.scale.set(1.05, 0.36, 0.8); front.rotation.x = -0.3; front.rotation.z = -0.18;
+    for (const sx of [-1, 1]) add(new THREE.BoxGeometry(0.02, 0.07, 0.09), hair, sx * 0.108, -0.005, 0.01, headG);
+  } else if (H === 'backcap') {
     const hm = fabric(c.hatColor, 'cotton');
-    const crown = add(new THREE.SphereGeometry(0.126, 22, 12, 0, Math.PI * 2, 0, Math.PI / 2), hm, 0, 0.012, 0, headG); crown.scale.set(1, 1.02, 1);
-    const brim = add(new THREE.CircleGeometry(0.135, 18, Math.PI, Math.PI).rotateX(Math.PI / 2), fabric(c.hatColor, 'cotton', { side: THREE.DoubleSide }), 0, 0.02, -0.02, headG); brim.scale.set(1, 1, 1.3); brim.rotation.x = -0.1;
-    add(new THREE.SphereGeometry(0.012, 6, 5), hm, 0, 0.138, 0, headG);
-    const band = add(new THREE.TorusGeometry(0.126, 0.008, 6, 22), M(0xe6e1d6, 0.8), 0, 0.02, 0, headG); band.rotation.x = Math.PI / 2;
-  } else if (c.hat === 'bucket') {
+    const crown = add(new THREE.SphereGeometry(0.122, 22, 12, 0, Math.PI * 2, 0, Math.PI * 0.42), hm, 0, 0.05, 0, headG); crown.scale.set(1, 1.0, 1);
+    const brim = add(new THREE.CircleGeometry(0.13, 18, 0, Math.PI).rotateX(Math.PI / 2), fabric(c.hatColor, 'cotton', { side: THREE.DoubleSide }), 0, 0.078, 0.02, headG); brim.scale.set(1, 1, 1.3); brim.rotation.x = 0.12;
+    add(new THREE.SphereGeometry(0.012, 6, 5), hm, 0, 0.172, 0, headG);
+    const band = add(new THREE.TorusGeometry(0.118, 0.008, 6, 22), M(0x2a2a2e, 0.8), 0, 0.078, 0, headG); band.rotation.x = Math.PI / 2;
+  } else if (H === 'twin') {
+    const bangs = add(new THREE.SphereGeometry(0.121, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.24), hair, 0, 0.012, -0.004, headG); bangs.rotation.x = -0.55; bangs.scale.set(0.98, 1.1, 1);
+    for (const sx of [-1, 1]) {
+      const rib = M(c.ribbon || 0xe25c7a, 0.6);
+      const tail = add(new THREE.CapsuleGeometry(0.03, 0.2, 4, 8), hair, sx * 0.12, -0.11, 0.03, headG); tail.rotation.z = sx * 0.25; tail.rotation.x = 0.15;
+      add(new THREE.CapsuleGeometry(0.02, 0.1, 4, 8), hair, sx * 0.145, -0.24, 0.05, headG).rotation.z = sx * 0.35;
+      const knot = add(new THREE.SphereGeometry(0.014, 8, 6), rib, sx * 0.115, -0.015, 0.03, headG);
+      for (const d of [-1, 1]) { const loop = add(new THREE.SphereGeometry(0.02, 8, 6), rib, sx * 0.115 + sx * d * 0.018 * (d > 0 ? 1 : 0), -0.015 + d * 0.022, 0.03, headG); loop.scale.set(1.2, 0.6, 0.5); }
+    }
+  } else if (H === 'long') {
+    const bangs = add(new THREE.SphereGeometry(0.121, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.24), hair, 0.01, 0.012, -0.004, headG); bangs.rotation.x = -0.55; bangs.rotation.z = 0.28; bangs.scale.set(0.98, 1.1, 1);
+    const back = add(new THREE.CapsuleGeometry(0.1, 0.3, 6, 12), hair, 0, -0.2, 0.08, headG); back.scale.set(1.05, 1, 0.55);
+    for (const sx of [-1, 1]) { const st = add(new THREE.CapsuleGeometry(0.03, 0.26, 4, 8), hair, sx * 0.11, -0.16, -0.02, headG); st.rotation.z = sx * 0.08; st.rotation.x = -0.1; }
+    for (let k = 0; k < 4; k++) { const w = add(new THREE.CapsuleGeometry(0.024, 0.14, 4, 8), hair, (k - 1.5) * 0.045, -0.4, 0.1, headG); w.rotation.z = (k - 1.5) * 0.12; }
+  } else if (H === 'bucket') {
     const hm = fabric(c.hatColor, 'cotton');
-    add(new THREE.CylinderGeometry(0.115, 0.126, 0.115, 20), hm, 0, 0.075, 0, headG);
-    add(new THREE.CylinderGeometry(0.115, 0.115, 0.014, 20), hm, 0, 0.135, 0, headG);
-    add(new THREE.CylinderGeometry(0.128, 0.21, 0.05, 20, 1, true), fabric(c.hatColor, 'cotton', { side: THREE.DoubleSide }), 0, 0.0, 0, headG);
-    add(new THREE.CylinderGeometry(0.127, 0.127, 0.022, 20, 1, true), M(0x3a3f30, 0.8, { side: THREE.DoubleSide }), 0, 0.03, 0, headG);
-  } else if (c.hat === 'pony') {
-    const side = add(new THREE.SphereGeometry(0.122, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), hair, 0, 0.005, 0.005, headG); side.scale.set(0.95, 1, 1);
-    const bangs = add(new THREE.SphereGeometry(0.112, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.3), hair, 0.012, 0.04, -0.02, headG); bangs.rotation.x = -0.75; bangs.rotation.z = 0.2;
-    const band = add(new THREE.TorusGeometry(0.03, 0.01, 6, 12), M(0x7a3b45, 0.6), 0, -0.015, 0.115, headG); band.rotation.x = Math.PI / 2;
-    const tail = add(new THREE.CapsuleGeometry(0.036, 0.2, 4, 8), hair, 0, -0.12, 0.135, headG); tail.rotation.x = 0.3;
-    add(new THREE.CapsuleGeometry(0.026, 0.12, 4, 8), hair, 0.012, -0.24, 0.17, headG).rotation.x = 0.1;
+    add(new THREE.CylinderGeometry(0.112, 0.124, 0.1, 20), hm, 0, 0.11, 0, headG);
+    add(new THREE.CylinderGeometry(0.112, 0.112, 0.014, 20), hm, 0, 0.16, 0, headG);
+    add(new THREE.CylinderGeometry(0.126, 0.2, 0.045, 20, 1, true), fabric(c.hatColor, 'cotton', { side: THREE.DoubleSide }), 0, 0.045, 0, headG);
   }
-  // 팔: 어깨 → 팔꿈치 → 손 (소매 + 손목 시보리)
+  // ---- 팔 ----
   const arms = {};
-  const sleeveMat = c.sleeves === false ? skin : top;
+  const armR = B.arm;
   for (const [key, sx] of [['R', 1], ['L', -1]]) {
-    const sh = new THREE.Group(); sh.position.set(sx * 0.205, 1.42, 0); body.add(sh);
-    add(new THREE.SphereGeometry(0.058, 10, 8), top, 0, 0.0, 0, sh);
-    add(lathe([[0.052, 0], [0.05, -0.12], [0.044, -0.26], [0.042, -ARM.upper]], 12), top, 0, 0, 0, sh);
+    const sh = new THREE.Group(); sh.position.set(sx * 0.205 * B.shoulder, 1.42, 0); body.add(sh);
+    const upperMat = c.sleeves === 'none' ? skin : top;
+    add(new THREE.SphereGeometry(0.058 * armR, 12, 9), upperMat, 0, 0.0, 0, sh);
+    if (c.sleeves === 'short') {
+      add(lathe([[0.054 * armR, 0], [0.052 * armR, -0.1], [0.05 * armR, -0.14]], 12), top, 0, 0, 0, sh);
+      add(new THREE.TorusGeometry(0.05 * armR, 0.008, 6, 12), top, 0, -0.14, 0, sh).rotation.x = Math.PI / 2;
+      add(lathe([[0.048 * armR, -0.13], [0.046 * armR, -0.22], [0.042 * armR, -ARM.upper]], 12), skin, 0, 0, 0, sh);
+    } else add(lathe([[0.052 * armR, 0], [0.05 * armR, -0.12], [0.044 * armR, -0.26], [0.042 * armR, -ARM.upper]], 12), upperMat, 0, 0, 0, sh);
     const el = new THREE.Group(); el.position.set(0, -ARM.upper, 0); sh.add(el);
-    add(new THREE.SphereGeometry(0.04, 8, 6), sleeveMat, 0, 0, 0, el);
-    add(lathe([[0.04, 0], [0.038, -0.14], [0.03, -0.24], [0.03, -ARM.fore + 0.02]], 12), sleeveMat, 0, 0, 0, el);
-    if (sleeveMat !== skin) add(new THREE.TorusGeometry(0.031, 0.009, 6, 12), top, 0, -ARM.fore + 0.03, 0, el).rotation.x = Math.PI / 2;
+    const foreMat = c.sleeves === 'long' ? top : skin;
+    add(new THREE.SphereGeometry(0.04 * armR, 8, 6), foreMat, 0, 0, 0, el);
+    add(lathe([[0.04 * armR, 0], [0.038 * armR, -0.14], [0.03 * armR, -0.24], [0.03 * armR, -ARM.fore + 0.02]], 12), foreMat, 0, 0, 0, el);
+    if (foreMat !== skin) add(new THREE.TorusGeometry(0.031 * armR, 0.009, 6, 12), top, 0, -ARM.fore + 0.03, 0, el).rotation.x = Math.PI / 2;
+    else if (c.watch && key === 'L') add(new THREE.TorusGeometry(0.031 * armR, 0.008, 6, 12), M(0x222a33, 0.4, { metalness: 0.6 }), 0, -ARM.fore + 0.05, 0, el).rotation.x = Math.PI / 2;
     const hand = new THREE.Group(); hand.position.set(0, -ARM.fore, 0); el.add(hand);
     const palm = add(new THREE.BoxGeometry(0.065, 0.075, 0.03), skin, 0, -0.025, 0, hand); palm.rotation.y = sx * 0.2;
     for (let f = 0; f < 3; f++) add(new THREE.CapsuleGeometry(0.009, 0.035, 3, 6), skin, (f - 1) * 0.018, -0.08, -0.004 * f, hand);
@@ -1671,7 +1824,7 @@ function buildCharacter(c) {
     arms[key] = { sh, el, hand };
   }
   g.scale.setScalar(s);
-  g.userData = { arms, legs, headG, body, torso };
+  g.userData = { arms, legs, headG, body, torso: body.children.find(o => o.geometry && o.geometry.type === 'LatheGeometry') || body };
   return g;
 }
 function buildRod(r) {
@@ -1742,10 +1895,46 @@ function ikArm(arm, target, side) {
 
 // 포즈: rodPitch(라디안, 작을수록 수면 쪽), armLift(0~1 팔 들어올림), lean(몸 기울기), bend(대 휨), crouch(무릎 굽힘)
 const pose = { rodPitch: -0.75, armLift: 0, lean: 0, bend: 0, crouch: 0 };
+const celeb = { active: false, t: 0, fishQ: new THREE.Quaternion(), fishPos: new THREE.Vector3(), style: 'hop', camPos: new THREE.Vector3(0, 1.3, -2.5), blend: 0 };
+const _qTmp = new THREE.Quaternion(), _eTmp = new THREE.Euler();
+// 세리머니 포즈: 두 손 위치(캐릭터 로컬)와 물고기 위치/방향, 몸 동작
+function celebrationPose(dt, t) {
+  const U = character.userData, st = celeb.style, k = celeb.t;
+  const ease = smooth(0, 0.6, k);
+  let hr, hl, fishAt, vertical = false, bodyY = 0, bodyZ = 0, lean = 0;
+  const hop = Math.abs(Math.sin(t * 5.5));
+  if (st === 'hop') { // 귀엽게: 두 손으로 번쩍 들고 폴짝폴짝
+    hr = [0.13, 1.74, -0.12]; hl = [-0.13, 1.74, -0.12]; fishAt = [0, 1.8, -0.14]; bodyY = hop * 0.09; lean = -0.05;
+  } else if (st === 'sway') { // 섹시하게: 한 손으로 들고 허리에 손, 골반 흔들기
+    hr = [0.3, 1.5, -0.16]; hl = [-0.16, 0.98, -0.03]; fishAt = [0.32, 1.42, -0.16]; vertical = true; bodyZ = Math.sin(t * 2.4) * 0.07; lean = -0.03;
+  } else if (st === 'pump') { // 세련되게: 한 손 치켜들고 다른 손 주먹 펌프
+    hr = [0.2, 1.78, -0.1]; hl = [-0.22, 1.45 + Math.max(0, Math.sin(t * 4)) * 0.18, -0.12]; fishAt = [0.21, 1.76, -0.13]; vertical = true; bodyY = Math.max(0, Math.sin(t * 4)) * 0.02;
+  } else { // 씩씩하게: 양팔 벌려 포효
+    hr = [0.34, 1.76, -0.08]; hl = [-0.34, 1.7, -0.1]; fishAt = [0.34, 1.7, -0.12]; vertical = true; lean = -0.12; bodyY = Math.abs(Math.sin(t * 3)) * 0.03;
+  }
+  _handR.set(hr[0], hr[1], hr[2]).multiplyScalar(1).lerp(_handR, 1 - ease);
+  _handL.set(hl[0], hl[1], hl[2]).lerp(_handL, 1 - ease);
+  U.body.position.y = bodyY * ease; character.rotation.z = bodyZ * ease; character.rotation.x = lean * ease;
+  for (const key of ['L', 'R']) { const lg = U.legs[key]; lg.hip.rotation.x = -bodyY * 2; lg.knee.rotation.x = bodyY * 4; }
+  rodRig.visible = false; line.visible = false; bobber.visible = false;
+  character.updateMatrixWorld(true);
+  ikArm(U.arms.R, _handR, 1); ikArm(U.arms.L, _handL, -1);
+  // 물고기 위치/방향 (월드)
+  celeb.fishPos.set(fishAt[0], fishAt[1], fishAt[2]); character.localToWorld(celeb.fishPos);
+  character.getWorldQuaternion(celeb.fishQ);
+  if (vertical) celeb.fishQ.multiply(_qTmp.setFromEuler(_eTmp.set(0, 0, Math.PI / 2 + Math.sin(t * 3) * 0.05)));
+  else celeb.fishQ.multiply(_qTmp.setFromEuler(_eTmp.set(Math.sin(t * 3) * 0.06, Math.PI, 0)));
+  // 머리는 카메라를 봄
+  camera.getWorldPosition(_look); character.worldToLocal(_look); _look.sub(U.headG.position);
+  U.headG.rotation.y = lerp(U.headG.rotation.y, clamp(Math.atan2(-_look.x, -_look.z), -1, 1), dt * 5);
+  U.headG.rotation.x = lerp(U.headG.rotation.x, -clamp(Math.atan2(_look.y, Math.hypot(_look.x, _look.z)), -0.5, 0.5), dt * 5);
+}
 const _handR = new THREE.Vector3(), _handL = new THREE.Vector3(), _look = new THREE.Vector3();
 function updateCharacterPose(dt, t) {
   const U = character.userData;
   const breathe = Math.sin(t * 1.6) * 0.012;
+  if (celeb.active) { U.torso.scale.y = 1 + breathe; celebrationPose(dt, t); character.updateMatrixWorld(true); rodRig.getWorldPosition(rodBase); rodTip.copy(rodBase); return; }
+  if (!rodRig.visible) { rodRig.visible = true; line.visible = true; bobber.visible = true; character.rotation.z = 0; }
   // 몸 기울기 / 무릎
   character.rotation.x = -pose.lean * 0.2;
   U.body.position.y = -pose.crouch * 0.14;
@@ -1927,6 +2116,7 @@ function setState(s) {
   ui.fight.classList.toggle('hidden', s !== 'fight');
   reel.el.classList.toggle('hidden', s !== 'fight');
   $('fishcam').classList.toggle('hidden', s !== 'fight');
+  if (s === 'caught') $('fight').classList.add('hidden');
   if (S.running) $('minimapWrap').classList.toggle('hidden', s === 'fight' || s === 'caught' || s === 'card');
   if (s === 'fight') { reel.omega = 0; reel.input = 0; reel.rate = 0; reel.active = false; drawReel(); }
   ui.bite.classList.toggle('hidden', s !== 'bite');
@@ -2101,7 +2291,9 @@ function loseFish(msg, snapped) {
   S.shake = 0.3;
   startRetrieve(true);
 }
+function endCelebration() { celeb.active = false; celeb.t = 0; character.rotation.z = 0; }
 function startRetrieve(fast) {
+  endCelebration();
   S.retrieve = { from: bobber.position.clone(), t: 0, dur: fast ? 0.35 : 0.6 };
   setState('retrieve');
 }
@@ -2117,7 +2309,8 @@ function landCatch() {
   updateScoreUI();
   setState('caught');
   f.mode = 'caught';
-  S.catchAnim = { fish: f, t: 0, dur: 0.75, from: f.pos.clone(), pts, newRecord };
+  celeb.active = true; celeb.t = 0; celeb.style = selChar.cheer || 'hop';
+  S.catchAnim = { fish: f, t: 0, dur: 1.0, from: f.pos.clone(), pts, newRecord };
   splashAt(bobber.position.x, bobber.position.y, bobber.position.z, 2.2);
   sfx.splash(); vibrate([50, 40, 80, 40, 140]);
 }
@@ -2195,6 +2388,19 @@ $('vibBtn').addEventListener('click', (e) => { e.stopPropagation(); audio.setPre
 $('bgmBtn').addEventListener('click', (e) => { e.stopPropagation(); audio.ensure(); music.start(); audio.setPref('bgm', !audio.prefs.bgm); renderSoundBtns(); });
 $('sfxBtn').addEventListener('click', (e) => { e.stopPropagation(); audio.ensure(); audio.setPref('sfx', !audio.prefs.sfx); renderSoundBtns(); if (audio.prefs.sfx) sfx.tick(); });
 renderSoundBtns();
+// 진동 안내 + 테스트 버튼 (iOS 사파리는 진동 API 자체가 없음)
+{
+  const el = $('vibInfo');
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (!canVibrate) el.textContent = ios ? '📳 아이폰·아이패드의 브라우저는 진동 기능을 지원하지 않아요.' : '📳 이 브라우저는 진동을 지원하지 않아요.';
+  else {
+    el.innerHTML = '📳 진동 지원 기기 · <button class="btn ghost small" id="vibTest" type="button">진동 테스트</button> <span id="vibResult"></span>';
+    $('vibTest').addEventListener('click', () => {
+      let ok = false; try { ok = navigator.vibrate([80, 60, 80]); } catch (e) {}
+      $('vibResult').textContent = ok ? '→ 울렸나요? 안 울리면 기기의 진동·무음 설정을 확인하세요' : '→ 브라우저가 진동을 막았어요. 이 페이지를 새 탭이나 홈 화면 앱으로 열면 울립니다';
+    });
+  }
+}
 // 첫 터치/키 입력 이후 BGM 시작 (브라우저 자동재생 정책)
 const firstGesture = () => { audio.ensure(); music.start(); window.removeEventListener('pointerdown', firstGesture); window.removeEventListener('keydown', firstGesture); };
 window.addEventListener('pointerdown', firstGesture); window.addEventListener('keydown', firstGesture);
@@ -2508,7 +2714,8 @@ function updateFight(dt) {
   fish.pos.set(bx + Math.sin(f.angle) * 0.4, -0.5 - fish.L * 0.3 + jy, bz - Math.cos(f.angle) * 0.4);
   f.thrash += dt * (f.running ? 14 : 5);
   fish.mesh.position.copy(fish.pos);
-  fish.mesh.rotation.set(Math.sin(f.thrash) * 0.3, f.angle + Math.PI / 2 + Math.sin(f.thrash * 0.5) * 0.4, Math.sin(f.thrash * 0.7) * 0.25 + jpitch);
+  fish.angle = f.angle + Math.PI / 2 + Math.sin(f.thrash * 0.5) * 0.4;
+  fish.mesh.rotation.set(Math.sin(f.thrash) * 0.35, fish.angle, Math.sin(f.thrash * 0.7) * 0.2 + jpitch);
   if (f.running && !f.jump && Math.random() < dt * 4) splashAt(bx, bobber.position.y + 0.3, bz, 0.8);
   if (f.running && !f.jump) spray.emit(bx, 0.1, bz, 2, 1.8, 2.2);
   if (f.running) S.shake = Math.max(S.shake, 0.08);
@@ -2609,23 +2816,20 @@ function updateGame(dt) {
       break;
     }
     case 'fight': updateFight(dt); break;
-    case 'caught': {
-      const a = S.catchAnim; a.t += dt;
+    case 'caught':
+    case 'card': {
+      const a = S.catchAnim; a.t += dt; celeb.t += dt;
       const k = Math.min(1, a.t / a.dur);
       const f = a.fish;
-      camera.getWorldPosition(tmpV);
-      const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.getWorldQuaternion(new THREE.Quaternion()));
-      const dest = tmpV.add(fwd.multiplyScalar(3.6 + f.L * 1.2)).add(new THREE.Vector3(0, 1.1 + f.L * 0.3, 0));
-      f.pos.lerpVectors(a.from, dest, k * k);
-      f.pos.y += Math.sin(k * Math.PI) * 1.5;
+      // 물속에서 캐릭터 손으로 날아옴 → 손에 들림
+      f.pos.lerpVectors(a.from, celeb.fishPos, smooth(0, 1, k));
+      f.pos.y += Math.sin(k * Math.PI) * 1.8;
       f.mesh.position.copy(f.pos);
-      f.mesh.rotation.set((f.sp.flat ? 1.2 : 0) + Math.sin(S.t * 3) * 0.12, S.camYaw + Math.sin(S.t * 2) * 0.35, Math.sin(S.t * 2.5) * 0.15);
-      bobber.position.y = waveH(bobber.position.x, bobber.position.z, S.t);
-      pose.armLift = lerp(pose.armLift, 0.45, dt * 6); pose.rodPitch = lerp(pose.rodPitch, 0.1, dt * 6); pose.bend = lerp(pose.bend, 0.2, dt * 6); pose.lean = lerp(pose.lean, 0, dt * 6);
-      if (k >= 1) showCard(a);
+      if (k < 1) { f.mesh.rotation.set(Math.sin(S.t * 9) * 0.3, f.angle + Math.PI / 2, (0.5 - k) * 1.5); }
+      else { f.mesh.quaternion.copy(celeb.fishQ); if (f.sp.flat) f.mesh.rotateX(-Math.PI / 2); }
+      if (S.state === 'caught' && a.t >= 1.5) showCard(a);
       break;
     }
-    case 'card': break;
     case 'retrieve': {
       relax();
       const r = S.retrieve; r.t += dt;
@@ -2655,7 +2859,7 @@ function updateLine() {
 let last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
-  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const dt = clamp((now - last) / 1000, 0, 0.05); last = now; // 첫 프레임 타임스탬프가 과거일 수 있어 0 이상으로 고정
   const active = S.running && !S.paused;
   if (active || !S.running) S.t += dt;
   const t = S.t;
@@ -2668,7 +2872,23 @@ function frame(now) {
   if (!DEBUG_CAM) camera.rotation.y = CAM_YAW + S.camYaw;
   if (S.shake > 0) { S.shake = Math.max(0, S.shake - dt); camera.rotation.z = (Math.random() - 0.5) * S.shake * 0.25; camera.rotation.x = CAM_PITCH + (Math.random() - 0.5) * S.shake * 0.15; }
   else if (!DEBUG_CAM) { camera.rotation.z = Math.sin(t * 0.6) * 0.004; camera.rotation.x = CAM_PITCH; }
-  character.rotation.y = lerp(character.rotation.y, S.aimYaw, dt * 6);
+  // 세리머니: 카메라가 캐릭터 정면으로 돌아 들어감
+  celeb.blend = clamp(celeb.blend + (celeb.active ? dt * 1.6 : -dt * 2.2), 0, 1);
+  if (celeb.blend > 0 && !DEBUG_CAM) {
+    const b = smooth(0, 1, celeb.blend);
+    const sc = character.scale.x, land = window.innerWidth > window.innerHeight;
+    // 캐릭터 둘레를 돌아 정면으로: 각도 π(뒤) → 0(앞), 거리·높이는 점점 가까이
+    const ang = Math.PI * (1 - b) * 0.85, R = lerp(4.5, 2.0 * sc, b), h = lerp(3.0, (land ? 1.7 : 1.75) * sc, b);
+    const cx = CHAR_POS.x, cz = CHAR_POS.z;
+    const cp = tmpV.set(cx + Math.sin(ang) * R * 0.4 + (land ? 0.3 : 0.05), CHAR_POS.y + h, cz - Math.cos(ang) * R);
+    // 가로 화면에선 캐릭터를 왼쪽에 두고 오른쪽에 카드가 뜨도록 시선을 오른쪽으로
+    const tx = CHAR_POS.x + (land ? 0.7 : 0), ty = CHAR_POS.y + (land ? 1.15 : 1.3) * sc, tz = CHAR_POS.z;
+    const fx = lerp(cp.x, 0.5 + Math.sin(S.aimYaw) * 30, 1 - b), fy = lerp(ty, 0, 1 - b), fz = lerp(tz, -30, 1 - b); // 바라보는 점: 바다 → 캐릭터
+    const dx = fx - cp.x, dy = fy - cp.y, dz = fz - cp.z;
+    camera.position.copy(cp);
+    camera.rotation.y = Math.atan2(-dx, -dz); camera.rotation.x = Math.atan2(dy, Math.hypot(dx, dz)); camera.rotation.z = 0;
+  } else if (!DEBUG_CAM) camera.position.set(0.5, 4.7, -1.9);
+  character.rotation.y = lerp(character.rotation.y, celeb.active ? 0 : S.aimYaw, dt * 6);
   updateCharacterPose(dt, t);
   boat.updateMatrixWorld(true);
   updateCharacterPose(dt, t);
@@ -2708,7 +2928,9 @@ function frame(now) {
   updateLine();
   spray.update(dt);
   updateFlare();
+  renderer.shadowMap.needsUpdate = true;
   renderReflection();
+  renderSceneBelow();
   if (composer) composer.render(); else renderer.render(scene, camera);
   if (S.state === 'fight' && fight) renderFishCam(fight.fish);
 }
@@ -2745,6 +2967,7 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   if (composer) { composer.setSize(window.innerWidth, window.innerHeight); }
+  resizeSceneRT();
 });
 
 updateScoreUI(); updateTimerUI();
@@ -2756,7 +2979,8 @@ if (/charview=/.test(location.search)) {
   $('startOverlay').classList.add('hidden');
   const idx = parseInt(location.search.match(/charview=(\d)/)[1], 10) || 0;
   selChar = CHARACTERS[idx % CHARACTERS.length]; setupPlayer();
-  camera.position.set(CHAR_POS.x, DECK_Y + 1.0, CHAR_POS.z - 2.3); camera.rotation.set(-0.05, Math.PI, 0);
+  if (/zoom/.test(location.search)) { camera.position.set(CHAR_POS.x, DECK_Y + 1.62 * (selChar.scale || 1), CHAR_POS.z - 0.75); camera.rotation.set(0, Math.PI, 0); }
+  else { camera.position.set(CHAR_POS.x, DECK_Y + 1.0, CHAR_POS.z - 2.3); camera.rotation.set(-0.05, Math.PI, 0); }
   S.hour = 11;
 }
 // 디버그: ?gallery 로 열면 어종을 한눈에 확인
