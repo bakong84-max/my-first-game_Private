@@ -7,6 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>바다낚시 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;700;900&display=swap">
 <style>
   :root {
     --bg: #0a3d62;
@@ -21,7 +23,8 @@
   .hidden { display: none !important; }
   html, body {
     margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink);
-    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    font-family: "Noto Sans KR", "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    --display: "Jua", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
     user-select: none; -webkit-user-select: none; touch-action: none; overscroll-behavior: none;
   }
   #stage { position: fixed; inset: 0; }
@@ -33,10 +36,10 @@
     display: flex; justify-content: space-between; align-items: flex-start;
     pointer-events: none; font-weight: 800; text-shadow: 0 2px 8px rgba(0,0,0,.55);
   }
-  .hud .score { font-size: 26px; letter-spacing: 1px; }
+  .hud .score { font-size: 30px; letter-spacing: 1px; font-family: var(--display); font-weight: 400; line-height: 1; }
   .hud .best, .hud .gear { font-size: 12px; color: var(--muted); font-weight: 600; margin-top: 2px; }
   .hud .center { text-align: center; }
-  .hud .timer { font-size: 22px; font-variant-numeric: tabular-nums; }
+  .hud .timer { font-size: 26px; font-variant-numeric: tabular-nums; font-family: var(--display); font-weight: 400; line-height: 1; }
   .hud .timer.low { color: var(--danger); }
   .hud .count { font-size: 12px; color: var(--muted); font-weight: 600; margin-top: 2px; }
   .hud .right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; padding-right: 84px; }
@@ -76,7 +79,7 @@
   }
   #toast {
     position: fixed; left: 50%; top: 36%; transform: translate(-50%, -50%) scale(.9);
-    pointer-events: none; font-size: 22px; font-weight: 900; text-align: center;
+    pointer-events: none; font-size: 26px; font-family: var(--display); font-weight: 400; text-align: center;
     text-shadow: 0 3px 12px rgba(0,0,0,.7); opacity: 0; transition: opacity .2s, transform .2s;
     padding: 0 24px; white-space: pre-line;
   }
@@ -84,7 +87,7 @@
 
   #bite {
     position: fixed; left: 50%; top: 40%; transform: translate(-50%, -50%);
-    pointer-events: none; font-size: 120px; font-weight: 900; color: var(--gold);
+    pointer-events: none; font-size: 130px; font-family: var(--display); font-weight: 400; color: var(--gold);
     text-shadow: 0 0 24px rgba(255,209,102,.8), 0 4px 10px rgba(0,0,0,.6);
     animation: pop .25s ease-out;
   }
@@ -115,14 +118,34 @@
     gap: 14px; padding: 28px; text-align: center; background: rgba(6,30,52,.72); backdrop-filter: blur(4px);
     z-index: 5;
   }
+  #vignette { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 52%, rgba(0,10,25,.42) 100%); z-index: 1; }
+  #flash { position: fixed; inset: 0; pointer-events: none; background: #fff; opacity: 0; z-index: 4; }
+  #flash.go { animation: flash .35s ease-out; }
+  @keyframes flash { 0% { opacity: .55; } 100% { opacity: 0; } }
+  #fade { position: fixed; inset: 0; pointer-events: none; background: #04101c; opacity: 0; z-index: 4; transition: opacity .7s ease; }
+  #fade.on { opacity: 1; transition: none; }
+  .overlay .big.sway { animation: sway 3.2s ease-in-out infinite; transform-origin: 50% 10%; }
+  @keyframes sway { 0%, 100% { transform: rotate(-7deg); } 50% { transform: rotate(7deg); } }
+  .overlay h1 .wave { display: inline-block; animation: bob 2.6s ease-in-out infinite; }
+  @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+  #confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 6; }
+  #confetti i { position: absolute; top: -12px; width: 10px; height: 16px; border-radius: 2px; animation: drop 2.4s cubic-bezier(.3,.6,.6,1) forwards; }
+  @keyframes drop { 0% { transform: translateY(0) rotate(0); opacity: 1; } 100% { transform: translateY(110vh) rotate(720deg); opacity: .9; } }
+  .catch-log { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 12px; font-size: 13px; color: var(--muted); max-width: 320px; width: 100%; text-align: left; margin-top: 4px; }
+  .catch-log b { color: var(--ink); }
+  .catch-log .tier { font-size: 11px; letter-spacing: 1px; font-weight: 800; color: var(--muted); align-self: center; }
+  .catch-log .tier.rare { color: var(--accent); } .catch-log .tier.epic { color: #d7a6ff; } .catch-log .tier.legend { color: var(--gold); }
+  .catch-log .n { text-align: right; font-variant-numeric: tabular-nums; }
+  @media (prefers-reduced-motion: reduce) { .overlay .big.sway, .overlay h1 .wave, #confetti i { animation: none; } }
   .overlay.scroll { justify-content: flex-start; overflow-y: auto; touch-action: pan-y; padding-top: calc(env(safe-area-inset-top, 0px) + 22px); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 28px); gap: 10px; }
-  .overlay h1 { margin: 0; font-size: 34px; letter-spacing: 1px; }
+  .overlay h1 { margin: 0; font-size: 40px; letter-spacing: 1px; font-family: var(--display); font-weight: 400; text-shadow: 0 4px 18px rgba(0,0,0,.35); }
   .overlay h1 span { color: var(--accent); }
   .overlay .big { font-size: 56px; line-height: 1; filter: drop-shadow(0 6px 16px rgba(90,209,255,.5)); }
   .overlay p { margin: 0; color: var(--muted); line-height: 1.6; font-size: 14px; }
-  .overlay .final { font-size: 44px; font-weight: 900; color: var(--gold); }
+  .overlay .final { font-size: 52px; font-family: var(--display); font-weight: 400; color: var(--gold); text-shadow: 0 0 24px rgba(255,209,102,.4); }
   .overlay .new { color: var(--gold); font-weight: 800; font-size: 14px; }
   .btn {
+    font-family: var(--display); font-weight: 400;
     margin-top: 6px; padding: 14px 34px; border-radius: 999px; border: 0; cursor: pointer;
     background: var(--accent); color: #062033; font-size: 18px; font-weight: 900; letter-spacing: 1px;
     box-shadow: 0 8px 24px rgba(90,209,255,.35); touch-action: manipulation;
@@ -163,10 +186,10 @@
   .card .tier.rare { color: var(--accent); }
   .card .tier.epic { color: #d7a6ff; }
   .card .tier.legend { color: var(--gold); text-shadow: 0 0 12px rgba(255,209,102,.6); }
-  .card .name { font-size: 32px; font-weight: 900; margin: 4px 0 6px; }
+  .card .name { font-size: 36px; font-family: var(--display); font-weight: 400; margin: 4px 0 6px; }
   .card .stats { display: flex; justify-content: center; gap: 18px; font-size: 15px; color: var(--muted); font-weight: 700; margin-top: 4px; }
   .card .stats b { color: var(--ink); font-size: 20px; display: block; }
-  .card .pts { font-size: 38px; font-weight: 900; color: var(--gold); margin-top: 10px; }
+  .card .pts { font-size: 42px; font-family: var(--display); font-weight: 400; color: var(--gold); margin-top: 10px; text-shadow: 0 0 20px rgba(255,209,102,.45); }
   .card .record { color: var(--gold); font-weight: 800; font-size: 13px; margin-top: 4px; min-height: 16px; }
   #catchOverlay { justify-content: flex-end; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 7vh); background: rgba(6,30,52,.35); backdrop-filter: none; }
   .record-list { font-size: 14px; color: var(--muted); line-height: 1.7; }
@@ -175,6 +198,10 @@
 </head>
 <body>
 <div id="stage"></div>
+<div id="vignette"></div>
+<div id="flash"></div>
+<div id="fade"></div>
+<div id="confetti"></div>
 
 <div class="hud">
   <div class="left">
@@ -228,8 +255,8 @@
 </div>
 
 <div id="startOverlay" class="overlay scroll">
-  <div class="big">🎣</div>
-  <h1>바다낚시 <span>3D</span></h1>
+  <div class="big sway">🎣</div>
+  <h1><span class="wave">바다낚시</span> <span>3D</span></h1>
   <p>크고 무거운 물고기일수록 점수가 높습니다. 새벽에 출항해 밤까지 5분, 최고 점수에 도전하세요!<br>지도에서 포인트를 옮기면 어종이 달라지고, 낮과 밤에 따라 잘 잡히는 물고기도 바뀝니다.</p>
   <div class="section"><h2>캐릭터</h2><div class="picker" id="charPicker"></div></div>
   <div class="section"><h2>낚싯대</h2><div class="picker" id="rodPicker"></div></div>
@@ -276,6 +303,7 @@
   <div class="new hidden" id="newBest">🏆 새로운 최고 점수!</div>
   <div class="new hidden" id="unlockMsg"></div>
   <div class="record-list" id="endStats"></div>
+  <div class="catch-log hidden" id="catchLog"></div>
   <div class="btn-row">
     <button class="btn" id="restartBtn">다시 출항</button>
     <button class="btn ghost" id="gearBtn">장비 변경</button>
@@ -645,7 +673,8 @@ const MOBILE = Math.min(window.innerWidth, window.innerHeight) < 600;
 const renderer = new THREE.WebGLRenderer({ antialias: !LOW_FX, alpha: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LOW_FX ? 1 : 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.toneMapping = THREE.NoToneMapping;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.18;
 renderer.shadowMap.enabled = !LOW_FX;
 renderer.shadowMap.type = MOBILE ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 stage.appendChild(renderer.domElement);
@@ -701,6 +730,7 @@ const skyMat = new THREE.ShaderMaterial({
       col += vec3(0.92, 0.94, 1.0) * (smoothstep(0.9986, 0.9992, m) * 1.1 + pow(m, 60.0) * 0.12) * uNight;
       if (d.y < 0.0) col = uHorizon;
       gl_FragColor = vec4(col, 1.0);
+      #include <tonemapping_fragment>
       #include <colorspace_fragment>
     }`,
 });
@@ -802,8 +832,14 @@ const waterMat = new THREE.ShaderMaterial({
       float spec = pow(max(dot(R, uSun), 0.0), 260.0) * 1.8 + pow(max(dot(R, uSun), 0.0), 24.0) * 0.12;
       vec3 col = mix(base, uSky, fres * 0.85) + vec3(spec);
       float alpha = mix(0.5, 0.97, fres);
+      // 파도 꼭대기 포말
+      float fn = sin(vWorldPos.x * 6.0 + uTime * 2.2) * sin(vWorldPos.z * 5.0 - uTime * 1.7) + 0.5 * sin(vWorldPos.x * 13.0 - vWorldPos.z * 9.0 + uTime * 3.0);
+      float foam = smoothstep(0.3, 0.58, vWorldPos.y) * smoothstep(-0.2, 0.9, fn);
+      col = mix(col, vec3(0.93, 0.97, 1.0), foam * 0.7);
+      alpha = mix(alpha, 1.0, foam * 0.7);
       gl_FragColor = vec4(col, alpha);
       #include <fog_fragment>
+      #include <tonemapping_fragment>
       #include <colorspace_fragment>
     }`,
 });
@@ -1793,6 +1829,7 @@ function startBite() {
   setState('bite');
   ui.bite.style.animation = 'none'; void ui.bite.offsetWidth; ui.bite.style.animation = '';
   sfx.bite(); vibrate([70, 40, 70]);
+  const fl = $('flash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
 }
 function spook(msg) {
   if (activeFish) { activeFish.mode = 'flee'; activeFish.target.set(activeFish.pos.x + rand(-20, 20), rand(activeFish.sp.depth[0], activeFish.sp.depth[1]), clamp(activeFish.pos.z - 15, FISH_AREA.zFar, FISH_AREA.zNear)); activeFish.modeTimer = 3; }
@@ -1838,6 +1875,7 @@ function landCatch() {
   const pts = pointsOf(f.weight);
   S.score += pts; S.catches++; S.totalWeight += f.weight;
   if (!S.biggest || f.weight > S.biggest.weight) S.biggest = { name: f.sp.name, weight: f.weight };
+  const lg = S.log[f.sp.name] || (S.log[f.sp.name] = { n: 0, maxW: 0, tier: f.sp.tier }); lg.n++; lg.maxW = Math.max(lg.maxW, f.weight);
   const newRecord = f.weight > S.biggestEver;
   if (newRecord) { S.biggestEver = f.weight; lsSet(LS.biggest, String(f.weight)); }
   updateScoreUI();
@@ -1856,6 +1894,7 @@ function showCard(anim) {
   $('cRecord').textContent = anim.newRecord ? '🏆 역대 최고 무게!' : (sp.tier === '전설' ? '✨ 전설의 물고기!' : '');
   $('catchOverlay').classList.remove('hidden');
   if (sp.tier === '전설' || sp.tier === '영웅') sfx.legend(); else sfx.catch();
+  if (sp.tier === '전설' || sp.tier === '영웅' || anim.newRecord) confetti(sp.tier === '전설' ? 90 : 50);
   setState('card');
 }
 $('catchBtn').addEventListener('click', () => {
@@ -1868,8 +1907,8 @@ $('catchBtn').addEventListener('click', () => {
 function startRound() {
   S.running = true; S.paused = false; S.score = 0; S.catches = 0; S.time = ROUND_TIME; S.biggest = null; S.totalWeight = 0; S.lastFight = false;
   S.aimYaw = 0; S.cast = null; S.retrieve = null; S.catchAnim = null; fight = null; activeFish = null; S.swing = 0;
-  S.visited = new Set([SPOTS[0].id]); S.hour = selTime.h; S.spot = SPOTS[0]; S.boatX = S.spot.x; S.boatZ = S.spot.z; S.heading = 0; S.travel = null; S.driftTimer = 12;
-  repopulate();
+  S.log = {}; S.visited = new Set([SPOTS[0].id]); S.hour = selTime.h; S.spot = SPOTS[0]; S.boatX = S.spot.x; S.boatZ = S.spot.z; S.heading = 0; S.travel = null; S.driftTimer = 12;
+  repopulate(); fadeIn();
   updateScoreUI(); updateTimerUI(); drawMinimap();
   ui.pauseBtn.classList.remove('hidden'); $('minimapWrap').classList.remove('hidden');
   $('startOverlay').classList.add('hidden'); $('endOverlay').classList.add('hidden');
@@ -1892,6 +1931,9 @@ function endRound() {
     (S.biggest ? `가장 큰 녀석: <b>${S.biggest.name} ${fmtW(S.biggest.weight)}</b>` : '아쉽게도 한 마리도 못 잡았어요') +
     `<br>방문한 포인트 <b>${S.visited.size}곳</b>` +
     `<br>최고 점수 <b>${S.best.toLocaleString()}점</b>`;
+  const rows = Object.entries(S.log).sort((a, b) => b[1].maxW - a[1].maxW);
+  $('catchLog').innerHTML = rows.map(([name, v]) => `<span class="tier ${TIER_CLASS[v.tier] || ''}">${v.tier}</span><b>${name}</b><span class="n">×${v.n} · 최대 ${fmtW(v.maxW)}</span>`).join('');
+  $('catchLog').classList.toggle('hidden', !rows.length);
   $('endOverlay').classList.remove('hidden');
   updateScoreUI();
   renderPickers();
@@ -2100,6 +2142,19 @@ $('mapCanvas').addEventListener('click', (e) => {
 });
 $('goBtn').addEventListener('click', () => { if (S.mapSel) { closeMap(); travelTo(S.mapSel); } });
 
+// ---------- 연출 보조 ----------
+function confetti(n) {
+  const box = $('confetti'); const colors = ['#ffd166', '#5ad1ff', '#ff5f7a', '#4fe3a3', '#d7a6ff', '#ffffff'];
+  for (let i = 0; i < n; i++) {
+    const el = document.createElement('i');
+    el.style.left = Math.random() * 100 + 'vw'; el.style.background = colors[i % colors.length];
+    el.style.animationDelay = (Math.random() * 0.6) + 's'; el.style.animationDuration = (2 + Math.random() * 1.2) + 's';
+    el.style.transform = `rotate(${Math.random() * 360}deg)`; el.style.width = (6 + Math.random() * 8) + 'px';
+    box.appendChild(el); setTimeout(() => el.remove(), 3600);
+  }
+}
+function fadeIn() { const f = $('fade'); f.classList.add('on'); void f.offsetWidth; setTimeout(() => f.classList.remove('on'), 40); }
+
 // ---------- 릴 조작 (원형 드래그) ----------
 const reel = { el: $('reel'), cv: $('reelCv'), active: false, pid: null, lastAng: 0, angle: 0, input: 0, omega: 0, rate: 0 };
 function reelAngleOf(e) { const r = reel.el.getBoundingClientRect(); return Math.atan2(e.clientY - (r.top + r.height / 2), e.clientX - (r.left + r.width / 2)); }
@@ -2205,11 +2260,19 @@ function updateFight(dt) {
   const bx = BOW.x + Math.sin(f.angle) * f.dist, bz = BOW.z - Math.cos(f.angle) * f.dist;
   const dip = f.running ? 0.35 : 0.1;
   bobber.position.set(bx, waveH(bx, bz, S.t) - dip, bz);
-  fish.pos.set(bx + Math.sin(f.angle) * 0.4, -0.5 - fish.L * 0.3, bz - Math.cos(f.angle) * 0.4);
+  // 달아나는 중 가끔 수면 위로 점프
+  if (f.running && !f.jump && fish.weight < 80 && Math.random() < dt * 0.45) { f.jump = { t: 0, dur: 0.75 + Math.min(fish.L, 2) * 0.2 }; splashAt(bx, 0, bz, 1.4); sfx.splash(); }
+  let jy = 0, jpitch = 0;
+  if (f.jump) {
+    f.jump.t += dt; const k = Math.min(1, f.jump.t / f.jump.dur);
+    jy = Math.sin(k * Math.PI) * (0.9 + fish.L * 0.6); jpitch = (0.5 - k) * 1.6;
+    if (k >= 1) { f.jump = null; splashAt(bx, 0, bz, 1.8); sfx.splash(); vibrate(30); }
+  }
+  fish.pos.set(bx + Math.sin(f.angle) * 0.4, -0.5 - fish.L * 0.3 + jy, bz - Math.cos(f.angle) * 0.4);
   f.thrash += dt * (f.running ? 14 : 5);
   fish.mesh.position.copy(fish.pos);
-  fish.mesh.rotation.set(Math.sin(f.thrash) * 0.3, f.angle + Math.PI / 2 + Math.sin(f.thrash * 0.5) * 0.4, Math.sin(f.thrash * 0.7) * 0.25);
-  if (f.running && Math.random() < dt * 4) splashAt(bx, bobber.position.y + 0.3, bz, 0.8);
+  fish.mesh.rotation.set(Math.sin(f.thrash) * 0.3, f.angle + Math.PI / 2 + Math.sin(f.thrash * 0.5) * 0.4, Math.sin(f.thrash * 0.7) * 0.25 + jpitch);
+  if (f.running && !f.jump && Math.random() < dt * 4) splashAt(bx, bobber.position.y + 0.3, bz, 0.8);
   if (f.running) S.shake = Math.max(S.shake, 0.08);
 
   ui.tensionFill.style.left = `calc(${(clamp(f.tension, 0, 1) * 100).toFixed(1)}% - 2px)`;
