@@ -118,6 +118,15 @@
     gap: 14px; padding: 28px; text-align: center; background: rgba(6,30,52,.72); backdrop-filter: blur(4px);
     z-index: 5;
   }
+  #fishcam { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 96px); left: 50%; transform: translateX(-50%); width: 44vw; max-width: 340px; aspect-ratio: 4 / 3; border: 2px solid rgba(255,255,255,.6); border-radius: 6px; box-shadow: 0 8px 28px rgba(0,0,0,.45); pointer-events: none; z-index: 2; }
+  #fishcam span { position: absolute; left: 6px; top: 4px; font-size: 11px; font-weight: 800; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.8); }
+  @media (min-aspect-ratio: 4/3) { #fishcam { width: 24vw; top: calc(env(safe-area-inset-top, 0px) + 78px); left: auto; right: 14px; transform: none; } }
+  #flare { position: fixed; inset: 0; pointer-events: none; z-index: 1; mix-blend-mode: screen; }
+  #flare i { position: absolute; border-radius: 50%; transform: translate(-50%, -50%); opacity: 0; }
+  #flare .f0 { width: 360px; height: 360px; background: radial-gradient(circle, rgba(255,240,200,.55) 0%, rgba(255,220,160,.18) 30%, rgba(255,200,120,0) 70%); }
+  #flare .f1 { width: 90px; height: 90px; background: radial-gradient(circle, rgba(160,220,255,.35) 0%, rgba(160,220,255,0) 70%); }
+  #flare .f2 { width: 40px; height: 40px; background: radial-gradient(circle, rgba(255,180,200,.45) 0%, rgba(255,180,200,0) 70%); }
+  #flare .f3 { width: 160px; height: 160px; background: radial-gradient(circle, rgba(255,230,150,.22) 0%, rgba(255,230,150,0) 70%); border: 2px solid rgba(255,240,200,.12); }
   #vignette { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 52%, rgba(0,10,25,.42) 100%); z-index: 1; }
   #flash { position: fixed; inset: 0; pointer-events: none; background: #fff; opacity: 0; z-index: 4; }
   #flash.go { animation: flash .35s ease-out; }
@@ -199,6 +208,8 @@
 <body>
 <div id="stage"></div>
 <div id="vignette"></div>
+<div id="flare"><i class="f0"></i><i class="f1"></i><i class="f2"></i><i class="f3"></i></div>
+<div id="fishcam" class="hidden"><span>🐟 수중 카메라</span></div>
 <div id="flash"></div>
 <div id="fade"></div>
 <div id="confetti"></div>
@@ -317,15 +328,28 @@
   <button class="btn" onclick="location.reload()">새로 고침</button>
 </div>
 
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
 <script type="module">
-// ---------- three.js 로딩 (CDN 두 곳 중 하나) ----------
+// ---------- three.js 로딩 (importmap 우선, 실패 시 CDN 직접 로드) ----------
 const SOURCES = [
   'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js',
   'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js',
 ];
-let THREE = null;
-for (const src of SOURCES) {
+let THREE = null, ADDONS = null;
+try { THREE = await import('three'); } catch (e) { console.warn('importmap load failed', e); }
+if (!THREE) for (const src of SOURCES) {
   try { THREE = await import(src); break; } catch (e) { console.warn('three load failed', src, e); }
+}
+if (THREE) {
+  // 후처리 애드온은 선택 사항: 없으면 블룸 없이 동작
+  try {
+    const [ec, rp, ub, op] = await Promise.all([
+      import('three/addons/postprocessing/EffectComposer.js'), import('three/addons/postprocessing/RenderPass.js'),
+      import('three/addons/postprocessing/UnrealBloomPass.js'), import('three/addons/postprocessing/OutputPass.js')]);
+    ADDONS = { EffectComposer: ec.EffectComposer, RenderPass: rp.RenderPass, UnrealBloomPass: ub.UnrealBloomPass, OutputPass: op.OutputPass };
+  } catch (e) { console.warn('postprocessing addons unavailable', e); }
 }
 if (!THREE) {
   document.getElementById('startOverlay').classList.add('hidden');
@@ -674,7 +698,8 @@ const renderer = new THREE.WebGLRenderer({ antialias: !LOW_FX, alpha: false, pow
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LOW_FX ? 1 : 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.18;
+renderer.toneMappingExposure = 1.05;
+
 renderer.shadowMap.enabled = !LOW_FX;
 renderer.shadowMap.type = MOBILE ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 stage.appendChild(renderer.domElement);
@@ -750,20 +775,30 @@ scene.add(world);
 }
 
 // 구름
-const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.92, fog: true });
-const clouds = [];
-for (let i = 0; i < 14; i++) {
-  const g = new THREE.Group();
-  const puffs = 3 + Math.floor(Math.random() * 3);
-  for (let j = 0; j < puffs; j++) {
-    const m = new THREE.Mesh(new THREE.SphereGeometry(rand(7, 13), 10, 8), cloudMat);
-    m.position.set(rand(-14, 14), rand(-2, 3), rand(-4, 4)); m.scale.y = 0.45; g.add(m);
+function makeCloudTexture(seed) {
+  const W = 256, c = document.createElement('canvas'); c.width = W; c.height = W / 2; const g = c.getContext('2d');
+  g.clearRect(0, 0, W, W / 2);
+  const blobs = 14 + Math.floor(seed * 6);
+  for (let i = 0; i < blobs; i++) {
+    const x = W * (0.15 + 0.7 * Math.random()), y = W / 2 * (0.35 + 0.45 * Math.random()), r = W * (0.07 + Math.random() * 0.11);
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, 'rgba(255,255,255,0.85)'); gr.addColorStop(0.55, 'rgba(255,255,255,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
   }
-  const ang = rand(0, Math.PI * 2);
-  g.position.set(Math.cos(ang) * rand(500, 900), rand(120, 220), Math.sin(ang) * rand(500, 900));
-  g.scale.setScalar(2.6);
-  g.userData.drift = rand(1.5, 3);
-  world.add(g); clouds.push(g);
+  // 아랫부분은 살짝 어둡게 (그늘)
+  const sh = g.createLinearGradient(0, 0, 0, W / 2); sh.addColorStop(0, 'rgba(255,255,255,0)'); sh.addColorStop(1, 'rgba(120,140,170,0.25)');
+  g.globalCompositeOperation = 'source-atop'; g.fillStyle = sh; g.fillRect(0, 0, W, W / 2); g.globalCompositeOperation = 'source-over';
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const cloudMats = [0, 1, 2].map(i => new THREE.SpriteMaterial({ map: makeCloudTexture(i / 3), transparent: true, depthWrite: false, fog: true, opacity: 0.92 }));
+const clouds = [];
+for (let i = 0; i < 18; i++) {
+  const sp = new THREE.Sprite(cloudMats[i % 3]);
+  const ang = rand(0, Math.PI * 2), w = rand(220, 420);
+  sp.position.set(Math.cos(ang) * rand(550, 1100), rand(140, 260), Math.sin(ang) * rand(550, 1100));
+  sp.scale.set(w, w * 0.5, 1);
+  sp.userData.drift = rand(1.5, 3);
+  world.add(sp); clouds.push(sp);
 }
 
 // 갈매기
@@ -793,16 +828,46 @@ const waterGeo = (() => {
   for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const a = i * (N + 1) + j, b = a + N + 1; idx.push(a, a + 1, b, a + 1, b + 1, b); }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); return g;
 })();
+// 잔물결 노멀맵 (타일링 가능, 절차 생성)
+function makeWaterNormalTexture() {
+  const N = 256, c = document.createElement('canvas'); c.width = N; c.height = N; const g = c.getContext('2d');
+  const h = new Float32Array(N * N);
+  const waves = []; for (let k = 0; k < 14; k++) { const a = Math.random() * Math.PI * 2, f = 1 + Math.floor(Math.random() * 5); waves.push([Math.cos(a) * f, Math.sin(a) * f, Math.random() * Math.PI * 2, 1 / (f + 1)]); }
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    let v = 0; const u = x / N * Math.PI * 2, w = y / N * Math.PI * 2;
+    for (const [kx, ky, ph, amp] of waves) v += Math.sin(Math.round(kx) * u + Math.round(ky) * w + ph) * amp;
+    h[y * N + x] = v;
+  }
+  const img = g.createImageData(N, N), d = img.data;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const l = h[y * N + (x + N - 1) % N], r = h[y * N + (x + 1) % N], up = h[((y + N - 1) % N) * N + x], dn = h[((y + 1) % N) * N + x];
+    const nx = (l - r) * 1.6, ny = (up - dn) * 1.6, nz = 1;
+    const len = Math.hypot(nx, ny, nz), i = (y * N + x) * 4;
+    d[i] = (nx / len * 0.5 + 0.5) * 255; d[i + 1] = (ny / len * 0.5 + 0.5) * 255; d[i + 2] = (nz / len * 0.5 + 0.5) * 255; d[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; return t;
+}
+const waterNormalTex = makeWaterNormalTexture();
+// 수면 반사: 거울 카메라로 장면을 렌더 타깃에 그린 뒤 수면 셰이더에서 샘플
+const REFL_SIZE = LOW_FX ? 256 : (MOBILE ? 512 : 1024);
+const reflRT = new THREE.WebGLRenderTarget(REFL_SIZE, REFL_SIZE, { type: THREE.HalfFloatType });
+const reflCam = new THREE.PerspectiveCamera();
+const reflTexMat = new THREE.Matrix4();
 const waterMat = new THREE.ShaderMaterial({
   transparent: true, fog: true, side: THREE.DoubleSide,
   uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
     uTime: { value: 0 },
+    tReflect: { value: null },
+    tNormal: { value: null },
+    uTexMat: { value: new THREE.Matrix4() },
+    uReflStrength: { value: LOW_FX ? 0.6 : 1 },
     uDeep: { value: new THREE.Color(0x0b4f74) },
     uShallow: { value: new THREE.Color(0x1d9ab8) },
     uSky: { value: new THREE.Color(0xd4ecf8) },
     uSun: { value: SUN_DIR.clone() },
   }]),
-  vertexShader: `uniform float uTime; varying vec3 vWorldPos; varying vec3 vNormal;
+  vertexShader: `uniform float uTime; uniform mat4 uTexMat; varying vec3 vWorldPos; varying vec3 vNormal; varying vec4 vRefl;
     #include <fog_pars_vertex>
     ${GLSL_WAVE}
     void main(){
@@ -813,25 +878,37 @@ const waterMat = new THREE.ShaderMaterial({
       float hz = waveH(p.xz + vec2(0.0,e), t) - waveH(p.xz - vec2(0.0,e), t);
       vNormal = normalize(vec3(-hx/(2.0*e), 1.0, -hz/(2.0*e)));
       vec4 wp = modelMatrix * vec4(p, 1.0); vWorldPos = wp.xyz;
+      vRefl = uTexMat * (modelMatrix * vec4(position.x, 0.0, position.z, 1.0));
       vec4 mvPosition = viewMatrix * wp; gl_Position = projectionMatrix * mvPosition;
       #include <fog_vertex>
     }`,
-  fragmentShader: `uniform vec3 uDeep, uShallow, uSky, uSun; uniform float uTime;
-    varying vec3 vWorldPos; varying vec3 vNormal;
+  fragmentShader: `uniform vec3 uDeep, uShallow, uSky, uSun; uniform float uTime, uReflStrength;
+    uniform sampler2D tReflect, tNormal;
+    varying vec3 vWorldPos; varying vec3 vNormal; varying vec4 vRefl;
     #include <fog_pars_fragment>
     void main(){
       vec3 V = normalize(cameraPosition - vWorldPos);
-      float r1 = sin(vWorldPos.x*2.6 + uTime*1.9) * sin(vWorldPos.z*2.3 - uTime*1.5);
-      float r2 = sin(vWorldPos.x*5.1 - uTime*2.7 + vWorldPos.z*1.7);
-      vec3 N = normalize(vNormal + vec3(r1*0.035 + r2*0.015, 0.0, r1*0.03 - r2*0.015));
+      float dist = length(cameraPosition - vWorldPos);
+      vec2 uv1 = vWorldPos.xz * 0.055 + vec2(uTime * 0.014, uTime * 0.022);
+      vec2 uv2 = vWorldPos.xz * 0.16 + vec2(-uTime * 0.03, uTime * 0.017);
+      vec2 uv3 = vWorldPos.xz * 0.42 + vec2(uTime * 0.05, -uTime * 0.04);
+      vec3 n1 = texture2D(tNormal, uv1).xyz * 2.0 - 1.0;
+      vec3 n2 = texture2D(tNormal, uv2).xyz * 2.0 - 1.0;
+      vec3 n3 = texture2D(tNormal, uv3).xyz * 2.0 - 1.0;
+      float detail = 1.0 / (1.0 + dist * 0.015);
+      vec3 N = normalize(vNormal + vec3(n1.x + n2.x * 0.7 + n3.x * 0.35, 0.0, n1.y + n2.y * 0.7 + n3.y * 0.35) * 0.45 * detail);
       float ndv = max(dot(N, V), 0.0);
       float fres = pow(1.0 - ndv, 3.0);
       float crest = clamp((vWorldPos.y + 0.1) * 1.4, 0.0, 1.0);
       vec3 base = mix(uDeep, uShallow, crest * 0.6 + 0.1);
+      // 실시간 반사 (노멀로 굴절시켜 샘플)
+      vec4 rc = vRefl; rc.xy += N.xz * 0.35 * rc.w;
+      vec3 refl = texture2DProj(tReflect, rc).rgb;
       vec3 R = reflect(-V, N);
-      float spec = pow(max(dot(R, uSun), 0.0), 260.0) * 1.8 + pow(max(dot(R, uSun), 0.0), 24.0) * 0.12;
-      vec3 col = mix(base, uSky, fres * 0.85) + vec3(spec);
-      float alpha = mix(0.5, 0.97, fres);
+      float sd = max(dot(R, uSun), 0.0);
+      float spec = pow(sd, 320.0) * 2.6 + pow(sd, 28.0) * 0.14;
+      vec3 col = mix(base, refl, clamp((0.12 + fres * 0.82) * uReflStrength, 0.0, 1.0)) + vec3(spec);
+      float alpha = mix(0.55, 0.98, fres);
       // 파도 꼭대기 포말
       float fn = sin(vWorldPos.x * 6.0 + uTime * 2.2) * sin(vWorldPos.z * 5.0 - uTime * 1.7) + 0.5 * sin(vWorldPos.x * 13.0 - vWorldPos.z * 9.0 + uTime * 3.0);
       float foam = smoothstep(0.3, 0.58, vWorldPos.y) * smoothstep(-0.2, 0.9, fn);
@@ -843,9 +920,44 @@ const waterMat = new THREE.ShaderMaterial({
       #include <colorspace_fragment>
     }`,
 });
+waterMat.uniforms.tReflect.value = reflRT.texture;
+waterMat.uniforms.tNormal.value = waterNormalTex;
+waterMat.uniforms.uTexMat.value = reflTexMat;
 const water = new THREE.Mesh(waterGeo, waterMat);
 water.renderOrder = 2;
 scene.add(water);
+// 거울 카메라 렌더 (Reflector 기법: 카메라를 수면에 대칭시키고 사선 클리핑)
+const _rf = { plane: new THREE.Plane(), normal: new THREE.Vector3(0, 1, 0), camPos: new THREE.Vector3(), view: new THREE.Vector3(), target: new THREE.Vector3(), look: new THREE.Vector3(), rot: new THREE.Matrix4(), clip: new THREE.Vector4(), q: new THREE.Vector4() };
+function renderReflection() {
+  const r = _rf;
+  camera.getWorldPosition(r.camPos);
+  if (r.camPos.y < 0.05) return;
+  r.view.copy(r.camPos); r.view.y = -r.view.y;
+  r.rot.extractRotation(camera.matrixWorld);
+  r.look.set(0, 0, -1).applyMatrix4(r.rot).add(r.camPos);
+  r.target.copy(r.look); r.target.y = -r.target.y;
+  reflCam.position.copy(r.view);
+  reflCam.up.set(0, 1, 0).applyMatrix4(r.rot); reflCam.up.reflect(r.normal);
+  reflCam.lookAt(r.target);
+  reflCam.far = camera.far; reflCam.updateMatrixWorld();
+  reflCam.projectionMatrix.copy(camera.projectionMatrix);
+  reflTexMat.set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1);
+  reflTexMat.multiply(reflCam.projectionMatrix).multiply(reflCam.matrixWorldInverse);
+  r.plane.setFromNormalAndCoplanarPoint(r.normal, new THREE.Vector3(0, 0, 0)).applyMatrix4(reflCam.matrixWorldInverse);
+  r.clip.set(r.plane.normal.x, r.plane.normal.y, r.plane.normal.z, r.plane.constant);
+  const pm = reflCam.projectionMatrix;
+  r.q.x = (Math.sign(r.clip.x) + pm.elements[8]) / pm.elements[0];
+  r.q.y = (Math.sign(r.clip.y) + pm.elements[9]) / pm.elements[5];
+  r.q.z = -1; r.q.w = (1 + pm.elements[10]) / pm.elements[14];
+  r.clip.multiplyScalar(2 / r.clip.dot(r.q));
+  pm.elements[2] = r.clip.x; pm.elements[6] = r.clip.y; pm.elements[10] = r.clip.z + 1 - 0.003; pm.elements[14] = r.clip.w;
+  reflCam.layers.set(0); // 물고기(레이어 1)는 반사에서 제외
+  water.visible = false;
+  const prevShadow = renderer.shadowMap.autoUpdate; renderer.shadowMap.autoUpdate = false;
+  renderer.setRenderTarget(reflRT); renderer.clear(); renderer.render(scene, reflCam);
+  renderer.setRenderTarget(null); renderer.shadowMap.autoUpdate = prevShadow;
+  water.visible = true;
+}
 const seabed = new THREE.Mesh(new THREE.PlaneGeometry(3200, 3200), new THREE.MeshBasicMaterial({ color: 0x083a52 }));
 seabed.rotation.x = -Math.PI / 2; seabed.position.y = -12;
 scene.add(seabed);
@@ -853,7 +965,7 @@ scene.add(seabed);
 // ---------- 섬 ----------
 const lighthouses = [], villageLights = [];
 function buildIsland(isl) {
-  const RINGS = 22, SEG = 56, pos = [], col = [], idx = [];
+  const RINGS = 32, SEG = 84, pos = [], col = [], idx = [];
   const sand = [0.85, 0.78, 0.6], grass = [0.27, 0.48, 0.25], dark = [0.18, 0.34, 0.2], rock = [0.4, 0.4, 0.38];
   const n2 = (x, y) => Math.sin(x * 1.7 + isl.seed) * Math.cos(y * 1.3 - isl.seed * 0.7) + 0.5 * Math.sin(x * 3.9 - y * 2.1 + isl.seed);
   for (let i = 0; i <= RINGS; i++) {
@@ -863,12 +975,12 @@ function buildIsland(isl) {
       const R = islandRadiusAt(isl, a) * 1.06;
       const r = t * R;
       const x = Math.cos(a) * r, z = Math.sin(a) * r;
-      let h = isl.h * Math.pow(Math.max(0, 1 - t * t), 1.25) * (0.75 + 0.25 * n2(x / isl.r * 2, z / isl.r * 2));
+      let h = isl.h * Math.pow(Math.max(0, 1 - t * t), 1.25) * (0.72 + 0.2 * n2(x / isl.r * 2, z / isl.r * 2) + 0.08 * n2(x / isl.r * 6 + 3, z / isl.r * 6));
       if (t > 0.94) h = lerp(h, -4, (t - 0.94) / 0.06);
       pos.push(x, h, z);
       const steep = Math.abs(n2(x / isl.r * 5, z / isl.r * 5));
-      const c = h < 2.5 ? sand : h > isl.h * 0.62 || steep > 1.1 ? rock : (steep > 0.6 ? dark : grass);
-      col.push(c[0] + (Math.random() - 0.5) * 0.05, c[1] + (Math.random() - 0.5) * 0.05, c[2] + (Math.random() - 0.5) * 0.05);
+      const c = h < 2.5 ? sand : h > isl.h * 0.66 || steep > 1.15 ? rock : (steep > 0.6 ? dark : grass);
+      col.push(c[0] + (Math.random() - 0.5) * 0.04, c[1] + (Math.random() - 0.5) * 0.04, c[2] + (Math.random() - 0.5) * 0.04);
     }
   }
   for (let i = 0; i < RINGS; i++) for (let j = 0; j < SEG; j++) {
@@ -879,8 +991,13 @@ function buildIsland(isl) {
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   geo.setIndex(idx); geo.computeVertexNormals();
+  { // 경사가 급한 면은 바위색으로
+    const nrm = geo.attributes.normal.array, cl = geo.attributes.color.array;
+    for (let i = 0; i < nrm.length; i += 3) { const ny = nrm[i + 1]; if (ny < 0.74 && pos[i + 1] > 2.5) { const k = clamp((0.74 - ny) / 0.2, 0, 1); cl[i] = lerp(cl[i], rock[0], k); cl[i + 1] = lerp(cl[i + 1], rock[1], k); cl[i + 2] = lerp(cl[i + 2], rock[2], k); } }
+    geo.attributes.color.needsUpdate = true;
+  }
   const g = new THREE.Group();
-  g.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true })));
+  const islandMesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 })); islandMesh.receiveShadow = false; g.add(islandMesh);
   // 나무 (큰 섬 위주)
   const treeMat = new THREE.MeshStandardMaterial({ color: 0x24502a, roughness: 0.9, flatShading: true });
   const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3420, roughness: 0.9 });
@@ -1151,7 +1268,7 @@ function fishFinsGeometry(sp, L) {
 function buildFishMesh(sp, L) {
   const g = new THREE.Group();
   const uni = { t: { value: rand(0, 6) }, a: { value: 0.05 }, len: { value: L }, axis: { value: sp.flat ? 1 : 0 } };
-  const bodyMat = swimify(new THREE.MeshStandardMaterial({ map: makeFishTexture(sp), roughness: 0.38, metalness: 0.3, emissive: 0xffffff, emissiveMap: makeFishTexture(sp), emissiveIntensity: 0.16 }), uni);
+  const bodyMat = swimify(new THREE.MeshPhysicalMaterial({ map: makeFishTexture(sp), roughness: 0.42, metalness: 0.25, clearcoat: 0.85, clearcoatRoughness: 0.18, bumpMap: makeFishTexture(sp), bumpScale: 0.0045, emissive: 0xffffff, emissiveMap: makeFishTexture(sp), emissiveIntensity: 0.14 }), uni);
   const body = new THREE.Mesh(fishBodyGeometry(sp, L), bodyMat); g.add(body);
   const finMat = swimify(new THREE.MeshStandardMaterial({ color: sp.fin, roughness: 0.55, metalness: 0.1, side: THREE.DoubleSide, transparent: true, opacity: 0.88, emissive: sp.fin, emissiveIntensity: 0.15 }), uni);
   const fins = new THREE.Mesh(fishFinsGeometry(sp, L), finMat); g.add(fins);
@@ -1167,6 +1284,7 @@ function buildFishMesh(sp, L) {
     pu.position.copy(e.position).add(dir.multiplyScalar(eyeR * 0.6)); g.add(pu);
   }
   g.userData.uni = uni;
+  g.traverse(o => { if (o.isMesh) o.layers.set(1); });
   return g;
 }
 
@@ -1641,6 +1759,80 @@ function splashAt(x, y, z, scale = 1) {
   const m = new THREE.Mesh(splashGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }));
   m.rotation.x = -Math.PI / 2; m.position.set(x, y + 0.05, z); m.renderOrder = 3; m.userData = { t: 0, scale };
   scene.add(m); splashes.push(m);
+  if (typeof spray !== 'undefined') spray.emit(x, Math.max(y, 0) + 0.05, z, Math.round(8 * scale), 1.6 * scale, 2.6 * scale);
+}
+
+// ---------- 물보라 파티클 ----------
+const PMAX = 420;
+const spray = (() => {
+  const pos = new Float32Array(PMAX * 3), colr = new Float32Array(PMAX * 3), vel = new Float32Array(PMAX * 3), life = new Float32Array(PMAX);
+  for (let i = 0; i < PMAX; i++) { pos[i * 3 + 1] = -100; }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(colr, 3));
+  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+  const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.4, 'rgba(255,255,255,0.7)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(c);
+  const mat = new THREE.PointsMaterial({ map: tex, size: 0.28, transparent: true, depthWrite: false, vertexColors: true, sizeAttenuation: true, opacity: 0.95 });
+  const pts = new THREE.Points(geo, mat); pts.frustumCulled = false; pts.renderOrder = 4; pts.layers.enable(2); scene.add(pts);
+  let cursor = 0;
+  function emit(x, y, z, n, speed = 2.5, up = 3.2) {
+    for (let k = 0; k < n; k++) {
+      const i = cursor; cursor = (cursor + 1) % PMAX;
+      const a = Math.random() * Math.PI * 2, sp = speed * (0.3 + Math.random() * 0.7);
+      pos[i * 3] = x; pos[i * 3 + 1] = y; pos[i * 3 + 2] = z;
+      vel[i * 3] = Math.cos(a) * sp; vel[i * 3 + 1] = up * (0.5 + Math.random() * 0.7); vel[i * 3 + 2] = Math.sin(a) * sp;
+      life[i] = 0.5 + Math.random() * 0.5;
+    }
+  }
+  function update(dt) {
+    for (let i = 0; i < PMAX; i++) {
+      if (life[i] <= 0) continue;
+      life[i] -= dt;
+      vel[i * 3 + 1] -= 9.8 * dt;
+      pos[i * 3] += vel[i * 3] * dt; pos[i * 3 + 1] += vel[i * 3 + 1] * dt; pos[i * 3 + 2] += vel[i * 3 + 2] * dt;
+      const b = Math.max(0, Math.min(1, life[i] * 2));
+      colr[i * 3] = colr[i * 3 + 1] = colr[i * 3 + 2] = b;
+      if (life[i] <= 0 || pos[i * 3 + 1] < -0.3) { life[i] = 0; pos[i * 3 + 1] = -100; }
+    }
+    geo.attributes.position.needsUpdate = true; geo.attributes.color.needsUpdate = true;
+  }
+  return { emit, update };
+})();
+
+// ---------- 수중 카메라 (릴 싸움 중 물고기 클로즈업) ----------
+const fishCam = new THREE.PerspectiveCamera(50, 4 / 3, 0.1, 80);
+fishCam.layers.set(1); fishCam.layers.enable(2); // 물고기(1) + 수중 전용(2)만
+camera.layers.enable(1);
+bobber.traverse(o => o.layers.enable(2)); line.layers.enable(2);
+const uwFog = new THREE.Fog(new THREE.Color(0x0b4a6c), 1.5, 16), uwBg = new THREE.Color(0x0b4a6c);
+const uwRays = new THREE.Group(); uwRays.visible = false; scene.add(uwRays);
+{
+  const rm = new THREE.MeshBasicMaterial({ color: 0xbfe8ff, transparent: true, opacity: 0.09, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
+  for (let i = 0; i < 10; i++) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.35 + Math.random() * 0.6, 12), rm);
+    m.position.set(rand(-4, 4), -5, rand(-4, 4)); m.rotation.set(rand(-0.15, 0.15), rand(0, Math.PI), rand(-0.12, 0.12));
+    m.layers.set(2); uwRays.add(m);
+  }
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(30, 24), new THREE.MeshStandardMaterial({ color: 0x24506a, roughness: 1 }));
+  floor.rotation.x = -Math.PI / 2; floor.position.y = -9; floor.layers.set(2); uwRays.add(floor);
+}
+function renderFishCam(fish) {
+  const el = $('fishcam'); if (!fish || el.classList.contains('hidden')) return;
+  const r = el.getBoundingClientRect(); if (r.width < 10) return;
+  const back = 1.1 + fish.L * 1.3;
+  // 물고기 옆면이 보이도록 몸통 축에 수직인 방향에서 천천히 흔들며 촬영
+  const ang = fish.mesh.rotation.y + Math.PI / 2 + Math.sin(S.t * 0.35) * 0.55;
+  fishCam.position.set(fish.pos.x + Math.cos(ang) * back, Math.min(-0.45, fish.pos.y + 0.25), fish.pos.z - Math.sin(ang) * back);
+  fishCam.lookAt(fish.pos.x, fish.pos.y, fish.pos.z);
+  fishCam.aspect = r.width / r.height; fishCam.updateProjectionMatrix();
+  uwRays.position.set(fish.pos.x, 0, fish.pos.z); uwRays.rotation.y = S.t * 0.05; uwRays.visible = true;
+  const fog = scene.fog, bg = scene.background; scene.fog = uwFog; scene.background = uwBg; water.visible = false;
+  const x = r.left, y = window.innerHeight - r.bottom;
+  renderer.setViewport(x, y, r.width, r.height); renderer.setScissor(x, y, r.width, r.height); renderer.setScissorTest(true);
+  renderer.render(scene, fishCam);
+  renderer.setScissorTest(false); renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+  scene.fog = fog; scene.background = bg; water.visible = true; uwRays.visible = false;
 }
 
 // ---------- 게임 상태 ----------
@@ -1691,6 +1883,7 @@ function setState(s) {
   ui.power.classList.toggle('hidden', s !== 'charging');
   ui.fight.classList.toggle('hidden', s !== 'fight');
   reel.el.classList.toggle('hidden', s !== 'fight');
+  $('fishcam').classList.toggle('hidden', s !== 'fight');
   if (S.running) $('minimapWrap').classList.toggle('hidden', s === 'fight' || s === 'caught' || s === 'card');
   if (s === 'fight') { reel.omega = 0; reel.input = 0; reel.rate = 0; reel.active = false; drawReel(); }
   ui.bite.classList.toggle('hidden', s !== 'bite');
@@ -2006,6 +2199,7 @@ function applyTimeOfDay(h, dt) {
   bobberGlowMat.emissiveIntensity = night * 2.2;
   for (const lh of lighthouses) lh.mat.emissiveIntensity = night * (Math.sin(S.t * 2.5 + lh.phase) > 0.75 ? 6 : 0.3);
   for (const vm of villageLights) vm.emissiveIntensity = night * 1.5;
+  { const cc = kfColor('top', i, j, k).clone().lerp(new THREE.Color(0xffffff), 0.15 + 0.7 * (1 - night)); cc.lerp(kfColor('hor', i, j, k), 0.25 * num('night') + 0.15); for (const m of cloudMats) m.color.copy(cc); }
   S.envTimer -= dt;
   if (S.envTimer <= 0) {
     S.envTimer = 0.5; const e = num('env');
@@ -2273,6 +2467,7 @@ function updateFight(dt) {
   fish.mesh.position.copy(fish.pos);
   fish.mesh.rotation.set(Math.sin(f.thrash) * 0.3, f.angle + Math.PI / 2 + Math.sin(f.thrash * 0.5) * 0.4, Math.sin(f.thrash * 0.7) * 0.25 + jpitch);
   if (f.running && !f.jump && Math.random() < dt * 4) splashAt(bx, bobber.position.y + 0.3, bz, 0.8);
+  if (f.running && !f.jump) spray.emit(bx, 0.1, bz, 2, 1.8, 2.2);
   if (f.running) S.shake = Math.max(S.shake, 0.08);
 
   ui.tensionFill.style.left = `calc(${(clamp(f.tension, 0, 1) * 100).toFixed(1)}% - 2px)`;
@@ -2468,13 +2663,45 @@ function frame(now) {
   const fishDt = active || !S.running ? dt : 0;
   for (const f of fishes) f.update(fishDt, t);
   updateLine();
-  renderer.render(scene, camera);
+  spray.update(dt);
+  updateFlare();
+  renderReflection();
+  if (composer) composer.render(); else renderer.render(scene, camera);
+  if (S.state === 'fight' && fight) renderFishCam(fight.fish);
+}
+// 후처리: 블룸 + 출력(톤매핑) 패스, MSAA 렌더 타깃
+let composer = null, bloomPass = null;
+if (ADDONS && !LOW_FX) {
+  try {
+    const pr = renderer.getPixelRatio();
+    const rt = new THREE.WebGLRenderTarget(window.innerWidth * pr, window.innerHeight * pr, { type: THREE.HalfFloatType, samples: MOBILE ? 2 : 4 });
+    composer = new ADDONS.EffectComposer(renderer, rt);
+    composer.addPass(new ADDONS.RenderPass(scene, camera));
+    bloomPass = new ADDONS.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.32, 0.55, 0.88);
+    composer.addPass(bloomPass);
+    composer.addPass(new ADDONS.OutputPass());
+  } catch (e) { console.warn('composer init failed', e); composer = null; }
+}
+// 태양 렌즈 플레어 (DOM)
+const flareEls = [...document.querySelectorAll('#flare i')];
+const _fv = new THREE.Vector3();
+function updateFlare() {
+  const sunDir = skyMat.uniforms.uSun.value;
+  if (sunDir.y <= 0.02) { for (const el of flareEls) el.style.opacity = 0; return; }
+  camera.getWorldPosition(_fv); _fv.addScaledVector(sunDir, 3000).project(camera);
+  if (_fv.z > 1 || Math.abs(_fv.x) > 1.6 || Math.abs(_fv.y) > 1.6) { for (const el of flareEls) el.style.opacity = 0; return; }
+  const W = window.innerWidth, H = window.innerHeight, sx = (_fv.x + 1) / 2 * W, sy = (1 - _fv.y) / 2 * H;
+  const edge = 1 - Math.max(0, (Math.max(Math.abs(_fv.x), Math.abs(_fv.y)) - 1) / 0.6);
+  const strength = clamp(sunDir.y * 2.2, 0, 1) * edge * (1 - skyMat.uniforms.uNight.value);
+  const ts = [0, 0.38, 0.62, 1.25];
+  flareEls.forEach((el, i) => { const k = ts[i]; el.style.left = (sx + (W / 2 - sx) * k) + 'px'; el.style.top = (sy + (H / 2 - sy) * k) + 'px'; el.style.opacity = strength * (i === 0 ? 1 : 0.8); });
 }
 requestAnimationFrame(frame);
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  if (composer) { composer.setSize(window.innerWidth, window.innerHeight); }
 });
 
 updateScoreUI(); updateTimerUI();
