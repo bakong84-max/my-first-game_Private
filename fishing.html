@@ -176,6 +176,7 @@
   .pick.sel { border-color: var(--accent); background: rgba(90,209,255,.16); box-shadow: 0 0 0 3px rgba(90,209,255,.2); }
   .pick.locked { opacity: .5; }
   .pick .av { font-size: 32px; line-height: 1.1; }
+  .pick img.pt { width: 76px; height: 95px; border-radius: 12px; object-fit: cover; background: linear-gradient(180deg, #cfe6f5, #8fbbd8); box-shadow: 0 4px 12px rgba(0,0,0,.35); }
   .pick .nm { font-weight: 900; font-size: 14px; }
   .pick .tr { font-size: 10.5px; color: var(--muted); line-height: 1.3; font-weight: 600; }
   .pick .st { font-size: 10px; color: var(--gold); letter-spacing: .5px; font-weight: 700; margin-top: 2px; white-space: nowrap; }
@@ -200,8 +201,13 @@
   .card .stats b { color: var(--ink); font-size: 20px; display: block; }
   .card .pts { font-size: 42px; font-family: var(--display); font-weight: 400; color: var(--gold); margin-top: 10px; text-shadow: 0 0 20px rgba(255,209,102,.45); }
   .card .record { color: var(--gold); font-weight: 800; font-size: 13px; margin-top: 4px; min-height: 16px; }
-  #catchOverlay { justify-content: flex-end; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 7vh); background: rgba(6,30,52,.2); backdrop-filter: none; }
-  @media (min-aspect-ratio: 5/4) { #catchOverlay { align-items: flex-end; padding-right: 7vw; justify-content: center; } }
+  #catchOverlay { justify-content: flex-end; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 6vh); background: rgba(6,30,52,.25); backdrop-filter: none; padding-left: 10px; padding-right: 10px; }
+  .catch-row { display: flex; align-items: flex-end; justify-content: center; gap: 10px; width: 100%; }
+  .celeb { height: min(44vh, 380px); aspect-ratio: 4 / 5; border-radius: 18px; border: 2px solid rgba(255,255,255,.4); box-shadow: 0 16px 40px rgba(0,0,0,.45); background: linear-gradient(180deg, rgba(207,230,245,.9), rgba(143,187,216,.9)); animation: celebIn .45s cubic-bezier(.2,.9,.3,1.2); object-fit: cover; }
+  @keyframes celebIn { from { transform: translateY(40px) scale(.8); opacity: 0; } to { transform: none; opacity: 1; } }
+  .catch-row .card { min-width: 0; width: min(54vw, 300px); padding: 16px 14px 14px; }
+  @media (min-aspect-ratio: 5/4) { #catchOverlay { justify-content: center; } .celeb { height: min(56vh, 440px); } }
+  @media (max-aspect-ratio: 4/5) { .catch-row { flex-direction: column; align-items: center; gap: 8px; } .celeb { height: min(30vh, 250px); } .catch-row .card { width: min(84vw, 320px); } }
   .record-list { font-size: 14px; color: var(--muted); line-height: 1.7; }
   .record-list b { color: var(--ink); }
 </style>
@@ -296,6 +302,8 @@
 </div>
 
 <div id="catchOverlay" class="overlay hidden">
+  <div class="catch-row">
+  <img id="celebPortrait" class="celeb" alt="">
   <div class="card">
     <div class="tier" id="cTier">일반</div>
     <div class="name" id="cName">고등어</div>
@@ -305,6 +313,7 @@
     </div>
     <div class="pts" id="cPts">+0점</div>
     <div class="record" id="cRecord"></div>
+  </div>
   </div>
   <button class="btn" id="catchBtn">계속 낚시</button>
 </div>
@@ -364,6 +373,7 @@ const $ = (id) => document.getElementById(id);
 const rand = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
+const hex2rgb = (h) => [(h >> 16) & 255, (h >> 8) & 255, h & 255];
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 // 저장소는 사생활 보호 모드 등에서 막힐 수 있으므로 항상 try/catch
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
@@ -401,12 +411,18 @@ const SPECIES = [
     back: 0x3b6e7a, side: 0xc3ced0, belly: 0xf4f6f4, fin: 0xe0c457, h: 0.25, w: 0.14, pattern: 'yellow-line', dorsal: 'soft', tail: 'fork', depth: [-2.5, -6.5] },
   { name: '참다랑어', minW: 30,   maxW: 180,  lenA: 40, rarity: 0.9, fight: 1.3, speed: 5.5, tier: '전설', minDist: 26,
     back: 0x12284f, side: 0x9fb0c4, belly: 0xe3e9ef, fin: 0xd9c24a, h: 0.3, w: 0.21, pattern: 'tuna', dorsal: 'sickle', tail: 'lunate', depth: [-4.0, -7.5] },
+  { name: '만새기',   minW: 4,    maxW: 30,   lenA: 46, rarity: 2.2, fight: 1.2,  speed: 5.8, tier: '영웅', minDist: 20, jumper: true,
+    back: 0x1f7a5a, side: 0xc9c24a, belly: 0xf3e59a, fin: 0x1f5f4a, h: 0.34, w: 0.12, pattern: 'mahi', dorsal: 'long', tail: 'fork', depth: [-1.5, -5.0] },
+  { name: '청새치',   minW: 60,   maxW: 400,  lenA: 60, rarity: 0.35, fight: 1.5, speed: 7.5, tier: '전설', minDist: 30, jumper: true, bill: true, longPec: true,
+    back: 0x16305e, side: 0x7c9fc4, belly: 0xe8eef4, fin: 0x24466f, h: 0.21, w: 0.13, pattern: 'marlin', dorsal: 'sail', tail: 'lunate', depth: [-3.0, -8.0] },
+  { name: '청상아리', minW: 50,   maxW: 300,  lenA: 62, rarity: 0.3, fight: 1.45, speed: 6.5, tier: '전설', minDist: 26, jumper: true, shark: true, longPec: true,
+    back: 0x2c4660, side: 0x8d9ba6, belly: 0xf2f4f5, fin: 0x34495b, h: 0.23, w: 0.2, pattern: 'shark', dorsal: 'shark', tail: 'shark', depth: [-2.5, -8.0] },
   { name: '돗돔',     minW: 50,   maxW: 200,  lenA: 36, rarity: 0.5, fight: 1.25, speed: 3.2, tier: '전설', minDist: 24,
     back: 0x3a2f4a, side: 0x6f647e, belly: 0xb8afc2, fin: 0x463a58, h: 0.38, w: 0.2, pattern: 'blotch', dorsal: 'spiny', tail: 'round', depth: [-5.0, -8.0] },
 ];
 const TIER_CLASS = { '일반': '', '희귀': 'rare', '영웅': 'epic', '전설': 'legend' };
 // 시간대별 출현 배율 [낮, 새벽·해질녘, 밤]
-const SPECIES_TIME = { '전갱이': [1, 1.6, 0.8], '고등어': [1.3, 1.0, 0.5], '우럭': [0.7, 1.2, 1.8], '광어': [1.2, 1, 0.6], '감성돔': [0.8, 1.6, 0.9], '참돔': [0.9, 1.6, 0.8], '농어': [0.5, 1.3, 2.2], '방어': [1, 1.8, 0.5], '부시리': [1, 1.8, 0.5], '참다랑어': [1.4, 1, 0.3], '돗돔': [0.3, 0.8, 2.6] };
+const SPECIES_TIME = { '전갱이': [1, 1.6, 0.8], '고등어': [1.3, 1.0, 0.5], '우럭': [0.7, 1.2, 1.8], '광어': [1.2, 1, 0.6], '감성돔': [0.8, 1.6, 0.9], '참돔': [0.9, 1.6, 0.8], '농어': [0.5, 1.3, 2.2], '방어': [1, 1.8, 0.5], '부시리': [1, 1.8, 0.5], '참다랑어': [1.4, 1, 0.3], '돗돔': [0.3, 0.8, 2.6], '만새기': [1.5, 1.1, 0.3], '청새치': [1.4, 1.2, 0.2], '청상아리': [0.9, 1.4, 1.2] };
 function dayPhase(h) {
   const day = smooth(6.5, 8.5, h) * (1 - smooth(16.5, 19, h));
   const night = h < 5.5 ? 1 : h < 7 ? 1 - (h - 5.5) / 1.5 : h > 20.5 ? 1 : h > 19 ? (h - 19) / 1.5 : 0;
@@ -423,11 +439,12 @@ const SPOTS = [
     mul: { 전갱이: 1.2, 고등어: 0.8, 우럭: 0.4, 광어: 3, 감성돔: 0.8, 참돔: 0.6, 농어: 1, 방어: 0.3, 부시리: 0.2, 참다랑어: 0.05, 돗돔: 0 } },
   { id: 'channel',  name: '섬 사이 물길',  x: 40,   z: -520, emoji: '🌊', desc: '조류가 빠른 물길. 참돔과 농어, 방어가 지나갑니다.', fish: '참돔·농어·방어',
     mul: { 전갱이: 0.6, 고등어: 1, 우럭: 0.6, 광어: 0.4, 감성돔: 0.8, 참돔: 2.2, 농어: 1.8, 방어: 1.6, 부시리: 0.8, 참다랑어: 0.3, 돗돔: 0.3 } },
-  { id: 'offshore', name: '먼바다 조류대', x: 520,  z: -480, emoji: '🌀', desc: '대물 회유어의 길목. 줄이 강한 낚싯대를 챙기세요.', fish: '방어·부시리·참다랑어',
+  { id: 'offshore', name: '먼바다 조류대', x: 520,  z: -480, emoji: '🌀', desc: '대물 회유어의 길목. 줄이 강한 낚싯대를 챙기세요.', fish: '방어·부시리·참다랑어·만새기·청새치',
     mul: { 전갱이: 0.4, 고등어: 0.9, 우럭: 0.1, 광어: 0.1, 감성돔: 0.2, 참돔: 0.8, 농어: 0.6, 방어: 2.5, 부시리: 2.5, 참다랑어: 2.2, 돗돔: 0.5 } },
-  { id: 'deep',     name: '심해 절벽',     x: -300, z: -640, emoji: '🕳️', desc: '수심 깊은 절벽. 밤이면 돗돔이 올라옵니다.', fish: '돗돔·참다랑어·우럭',
+  { id: 'deep',     name: '심해 절벽',     x: -300, z: -640, emoji: '🕳️', desc: '수심 깊은 절벽. 밤이면 돗돔이 올라옵니다.', fish: '돗돔·청상아리·참다랑어',
     mul: { 전갱이: 0.3, 고등어: 0.4, 우럭: 1.6, 광어: 0.3, 감성돔: 0.3, 참돔: 1, 농어: 0.5, 방어: 0.8, 부시리: 0.8, 참다랑어: 1.5, 돗돔: 3 } },
 ];
+for (const sp of SPOTS) Object.assign(sp.mul, { 만새기: 0, 청새치: 0, 청상아리: 0 }, sp.id === 'offshore' ? { 만새기: 2.2, 청새치: 2.0, 청상아리: 1.6 } : sp.id === 'deep' ? { 만새기: 0.4, 청새치: 0.6, 청상아리: 1.5 } : sp.id === 'channel' ? { 만새기: 0.8, 청새치: 0.15, 청상아리: 0.25 } : {});
 const ISLANDS = [
   { name: '항구섬',   x: -200, z: -140, r: 150, h: 40,  seed: 1, village: true },
   { name: '등대섬',   x: 300,  z: -760, r: 110, h: 62,  seed: 2, lighthouse: true },
@@ -435,7 +452,7 @@ const ISLANDS = [
   { name: '작은쌍둥이', x: 120, z: -830, r: 90,  h: 30,  seed: 4 },
   { name: '바위섬',   x: -620, z: -300, r: 120, h: 75,  seed: 5, lighthouse: true },
   { name: '모래섬',   x: 260,  z: -300, r: 70,  h: 12,  seed: 6 },
-  { name: '큰섬',     x: 700,  z: 200,  r: 260, h: 95,  seed: 7 },
+  { name: '큰섬',     x: 700,  z: 200,  r: 260, h: 95,  seed: 7, town: true },
   { name: '먼섬',     x: -700, z: -900, r: 200, h: 115, seed: 8 },
   { name: '남쪽섬',   x: 150,  z: 520,  r: 160, h: 55,  seed: 9 },
 ];
@@ -467,23 +484,163 @@ function fmtW(w) { return w >= 10 ? w.toFixed(1) + 'kg' : w >= 1 ? w.toFixed(2) 
 
 // ---------- 캐릭터 / 낚싯대 ----------
 const CHARACTERS = [
-  // 남: 세련된 준호 / 씩씩한 강호, 여: 귀여운 하늘 / 섹시한 유나 (색은 실제 의류 톤)
-  { id: 'junho',  name: '준호', emoji: '🕶️', desc: '세련된 도시 조사', trait: '릴 감기 15% 빠름', cheer: 'pump',
-    skin: 0xd9ab85, hair: 0x241a14, hat: 'swept', glasses: 'up', watch: true, jaw: 1.05, browAngle: -0.22,
-    shirt: 0x2a2f36, topKind: 'nylon', pants: 0x8c7b63, pantsKind: 'cotton', shoe: 0xf1ede6, sole: 0xd8d2c8, sleeves: 'long', pocket: true,
-    body: { shoulder: 1.02, chest: 1.0, waist: 0.9, hip: 0.92, arm: 1.0 }, reel: 1.15 },
-  { id: 'gangho', name: '강호', emoji: '💪', desc: '씩씩한 바다 사나이', trait: '챔질 여유 40% 증가', cheer: 'roar',
-    skin: 0xc48f67, hair: 0x1e1612, hat: 'backcap', hatColor: 0x2d3a4c, stubble: true, jaw: 1.12, browAngle: -0.3, nose: 1.15,
-    shirt: 0xd6d1c4, topKind: 'cotton', tank: true, sleeves: 'none', pants: 0x6b6a4e, pantsKind: 'cotton', shorts: 0.3, shoe: 0x2b2b2f, sole: 0x3a3a3e,
-    body: { shoulder: 1.2, chest: 1.16, waist: 1.02, hip: 1.0, arm: 1.35, neck: 1.25 }, biteWindow: 1.4 },
-  { id: 'haneul', name: '하늘', emoji: '🎀', desc: '귀여운 행운의 소녀', trait: '희귀 어종 2배 등장', cheer: 'hop',
-    skin: 0xf0cbb0, hair: 0x3a2318, hat: 'twin', ribbon: 0xe25c7a, eyeScale: 1.45, eyeColor: 0x3b2a1e, lashes: true, blush: true, lips: true, lipColor: 0xd0706e, nose: 0.8, browAngle: 0.05,
-    shirt: 0xd9a7b5, topKind: 'knit', hoodie: true, pants: 0x4e6b8c, pantsKind: 'denim', shorts: 0.2, leggings: 0x2b2b33, shoe: 0xf4f0ea, sole: 0xe2b8c2,
-    body: { shoulder: 0.84, chest: 0.9, waist: 0.82, hip: 0.95, arm: 0.85, head: 1.1, neck: 0.85 }, scale: 0.86, luck: 2 },
-  { id: 'yuna',   name: '유나', emoji: '💃', desc: '섹시한 베테랑 조사', trait: '입질 30% 빨리 옴', cheer: 'sway',
-    skin: 0xe3b593, hair: 0x4a2a1a, hat: 'long', earrings: true, eyeScale: 1.2, eyeColor: 0x4a3222, lashes: true, lips: true, lipColor: 0xb9414b, nose: 0.85, browAngle: -0.18,
-    shirt: 0xf0ebe2, topKind: 'cotton', crop: true, bust: 1.0, sleeves: 'short', pants: 0x34455f, pantsKind: 'denim', shorts: 0.17, shoe: 0xf4f0ea, sole: 0xd8d2c8,
-    body: { shoulder: 0.88, chest: 1.0, waist: 0.72, hip: 1.14, arm: 0.85, leg: 0.95, neck: 0.85 }, scale: 0.97, biteSpeed: 0.7 },
+  { id: 'mansu', name: '만수', emoji: '🎣', desc: '노련한 낚시광 아저씨', trait: '챔질 여유 40% · 물고기가 25% 빨리 지침', cheer: 'roar',
+    skin: 0xc9956f, hair: 0x6e665e, hat: 'bucket', hatColor: 0x6a6a4c, beard: 0x8f877c, jaw: 1.12, browAngle: -0.25, nose: 1.1,
+    shirt: 0x8a4a3e, topKind: 'cotton', pants: 0x5c5a50, pantsKind: 'cotton', vest: 0x9a8f6a, boots: true, sleeves: 'long',
+    body: { shoulder: 1.06, chest: 1.1, waist: 1.12, hip: 1.04, arm: 1.05 }, biteWindow: 1.4, tire: 1.25,
+    portrait: {
+      skin: '#e7b58f', skinShadow: '#b8785a', hair: '#8a837a', hairShadow: '#5a544d', hairHi: '#c9c2b8', eye: '#4a3326', eyeDark: '#2a1a12', eyeLight: '#8a6a4a',
+      headW: 100, jaw: 0.75, chin: 128, round: 0.1, neckW: 46, shoulderW: 190, eyeDX: 44, eyeY: 12, eyeW: 40, eyeH: 15, irisR: 0.72, browT: 9, browA: -0.6, browLift: 10, noseLen: 10, mouthY: 84, smile: 7, blush: 0.15, crowsFeet: true, eyeBags: true, browColor: '#6b645c',
+      foreheadShadow: (cx, cy, hw) => [[cx - hw, cy - 60], [cx + hw, cy - 60], [cx + hw, cy - 118], [cx - hw, cy - 118]],
+      beard: (g, e) => { // 희끗한 턱수염
+        const { cx, cy, hw, pathPts, fillStroke, grad, my } = e;
+        pathPts([[cx - hw * 0.8, cy + 50], [cx - hw * 0.9, cy + 110, cx - hw * 0.45, cy + 150], [cx, cy + 162], [cx + hw * 0.45, cy + 150], [cx + hw * 0.9, cy + 110, cx + hw * 0.8, cy + 50], [cx + hw * 0.5, cy + 95, cx + 26, my + 10], [cx, my + 14], [cx - 26, my + 10], [cx - hw * 0.5, cy + 95, cx - hw * 0.8, cy + 50]]);
+        fillStroke(grad(cx, cy + 50, cx, cy + 160, [[0, '#9a9288'], [1, '#d8d2c8']]), 'rgba(60,50,45,0.6)', 2);
+        g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = 1.5; for (let k = 0; k < 14; k++) { const x = cx - hw * 0.6 + k * hw * 0.09; g.beginPath(); g.moveTo(x, cy + 90 + Math.abs(k - 7) * 2); g.lineTo(x + 3, cy + 140 - Math.abs(k - 7) * 5); g.stroke(); }
+        // 콧수염
+        pathPts([[cx - 30, my - 8], [cx - 12, my - 18, cx, my - 10], [cx + 12, my - 18, cx + 30, my - 8], [cx + 10, my, cx, my - 2], [cx - 10, my, cx - 30, my - 8]]); fillStroke('#aaa39a', 'rgba(60,50,45,0.6)', 1.6);
+      },
+      hairFront: (g, e) => { const { cx, cy, hw, pathPts, fillStroke, col } = e; for (const sx of [-1, 1]) { pathPts([[cx + sx * hw * 0.98, cy - 60], [cx + sx * hw * 1.08, cy - 10, cx + sx * hw * 1.0, cy + 30], [cx + sx * hw * 0.86, cy + 10, cx + sx * hw * 0.84, cy - 50]]); fillStroke('#9a938a', col.line, 2); } },
+      accessory: (g, e) => { // 버킷햇 + 낚시바늘 핀
+        const { cx, cy, hw, pathPts, fillStroke, ell, grad } = e;
+        const top = cy - 165, brimY = cy - 62;
+        pathPts([[cx - hw * 1.08, brimY], [cx - hw * 1.12, top + 30, cx - hw * 0.55, top], [cx, top - 6, cx + hw * 0.55, top], [cx + hw * 1.12, top + 30, cx + hw * 1.08, brimY]]);
+        fillStroke(grad(cx - hw, top, cx + hw, brimY, [[0, '#7c7d58'], [1, '#55573c']]), 'rgba(35,30,25,0.85)', 2.4);
+        g.strokeStyle = 'rgba(0,0,0,0.18)'; g.lineWidth = 1.2; for (let k = 1; k < 4; k++) { g.beginPath(); g.moveTo(cx - hw * 1.0, brimY - k * 22); g.quadraticCurveTo(cx, brimY - k * 22 - 10, cx + hw * 1.0, brimY - k * 22); g.stroke(); }
+        ell(cx, brimY + 4, hw * 1.55, 24); fillStroke(grad(cx, brimY - 20, cx, brimY + 28, [[0, '#6d6e4c'], [1, '#43452e']]), 'rgba(35,30,25,0.85)', 2.4);
+        pathPts([[cx - hw * 1.55, brimY + 4], [cx - hw * 0.8, brimY + 40, cx, brimY + 44], [cx + hw * 0.8, brimY + 40, cx + hw * 1.55, brimY + 4]]); fillStroke('#3a3b27', null);
+        g.strokeStyle = '#d7c7a1'; g.lineWidth = 2.5; g.beginPath(); g.arc(cx + hw * 0.55, brimY - 40, 9, 0.2, Math.PI * 1.6); g.stroke(); g.beginPath(); g.moveTo(cx + hw * 0.55 + 7, brimY - 46); g.lineTo(cx + hw * 0.55 + 9, brimY - 70); g.stroke();
+      },
+      outfit: (g, e) => { // 체크 셔츠 + 다주머니 낚시조끼
+        const { cx, top, sw, torso, pathPts, fillStroke, grad, col, LW } = e;
+        torso(); fillStroke('#8d4b40', col.line, LW);
+        g.save(); torso(); g.clip(); g.strokeStyle = 'rgba(255,230,200,0.35)'; g.lineWidth = 6; for (let x = cx - sw; x <= cx + sw; x += 28) { g.beginPath(); g.moveTo(x, top - 20); g.lineTo(x - 10, 640); g.stroke(); } for (let y = top; y < 640; y += 28) { g.beginPath(); g.moveTo(cx - sw * 1.1, y); g.lineTo(cx + sw * 1.1, y + 6); g.stroke(); } g.restore();
+        // 조끼
+        for (const sx of [-1, 1]) {
+          pathPts([[cx + sx * 22, top - 6], [cx + sx * sw * 0.62, top - 4, cx + sx * sw * 0.82, top + 70], [cx + sx * sw * 0.9, top + 160, cx + sx * sw * 0.86, 640], [cx + sx * 28, 640], [cx + sx * 24, top + 120, cx + sx * 22, top - 6]]);
+          fillStroke(grad(cx + sx * 20, top, cx + sx * sw, 640, [[0, '#b4a67c'], [1, '#8a7d58']]), col.line, LW);
+          for (const [py, ph] of [[top + 70, 46], [top + 150, 56]]) { pathPts([[cx + sx * 40, py], [cx + sx * sw * 0.74, py], [cx + sx * sw * 0.74, py + ph], [cx + sx * 40, py + ph]]); fillStroke('rgba(0,0,0,0.08)', col.line, 1.8); pathPts([[cx + sx * 38, py], [cx + sx * sw * 0.76, py], [cx + sx * sw * 0.76, py + 14], [cx + sx * 38, py + 14]]); fillStroke('#a3966c', col.line, 1.8); }
+          g.strokeStyle = 'rgba(0,0,0,0.25)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(cx + sx * 30, top + 10); g.lineTo(cx + sx * 30, 640); g.stroke();
+        }
+        g.strokeStyle = '#4a4538'; g.lineWidth = 3; g.beginPath(); g.moveTo(cx, top - 4); g.lineTo(cx, 640); g.stroke();
+      },
+    } },
+  { id: 'taeyang', name: '태양', emoji: '💪', desc: '힘센 운동 마니아 청년', trait: '줄 강도 20% · 릴 감기 15% 빠름', cheer: 'pump',
+    skin: 0xcf9a6e, hair: 0x1f1813, hat: 'swept', glasses: 'up', jaw: 1.08, browAngle: -0.3, stubble: false,
+    shirt: 0xe9e6dc, topKind: 'cotton', tank: true, sleeves: 'none', pants: 0x2f3a4a, pantsKind: 'nylon', shorts: 0.3, shoe: 0x1f1f23, sole: 0xe6e6e6,
+    body: { shoulder: 1.22, chest: 1.18, waist: 1.0, hip: 0.98, arm: 1.4, neck: 1.2 }, line: 1.2, reel: 1.15,
+    portrait: {
+      skin: '#e4b085', skinShadow: '#b4734f', hair: '#2a211b', hairShadow: '#14100d', hairHi: '#6b5a4c', eye: '#3a2a20', eyeDark: '#1b120c', eyeLight: '#7a5a40',
+      headW: 97, jaw: 0.6, chin: 130, round: 0.05, neckW: 58, shoulderW: 215, eyeDX: 44, eyeY: 10, eyeW: 44, eyeH: 19, irisR: 0.78, browT: 10, browA: -0.9, browLift: 6, noseLen: 8, mouthY: 82, smile: 9, blush: 0.1, browColor: '#231a14',
+      foreheadShadow: (cx, cy, hw) => [[cx - hw * 0.9, cy - 55], [cx - hw * 0.3, cy - 20, cx + hw * 0.4, cy - 45], [cx + hw * 0.95, cy - 70], [cx + hw, cy - 120], [cx - hw, cy - 120]],
+      hairFront: (g, e) => { // 쓸어 올린 짧은 머리 + 구레나룻
+        const { cx, cy, hw, pathPts, fillStroke, col, ell, rgrad } = e;
+        const clip = () => pathPts([[cx - hw * 1.02, cy - 20], [cx - hw * 1.1, cy - 120, cx - hw * 0.3, cy - 150], [cx + hw * 0.5, cy - 160, cx + hw * 1.08, cy - 95], [cx + hw * 1.04, cy - 45, cx + hw * 0.92, cy - 62], [cx + hw * 0.5, cy - 30, cx + hw * 0.05, cy - 52], [cx - hw * 0.35, cy - 25, cx - hw * 0.6, cy - 66], [cx - hw * 0.8, cy - 40, cx - hw * 1.02, cy - 20]]);
+        clip(); fillStroke(col.hair, col.line, 2.4);
+        hairShade(g, e, clip, -95);
+        for (const sx of [-1, 1]) { pathPts([[cx + sx * hw * 1.0, cy - 40], [cx + sx * hw * 1.1, cy + 10, cx + sx * hw * 1.0, cy + 48], [cx + sx * hw * 0.9, cy + 20, cx + sx * hw * 0.88, cy - 30]]); fillStroke(col.hair, col.line, 1.8); }
+      },
+      accessory: (g, e) => { // 머리 위 선글라스
+        const { cx, cy, hw, pathPts, fillStroke, grad } = e; const y = cy - 118;
+        g.strokeStyle = '#1b1b1f'; g.lineWidth = 4; g.beginPath(); g.moveTo(cx - hw * 0.9, y + 18); g.quadraticCurveTo(cx, y - 8, cx + hw * 0.9, y + 18); g.stroke();
+        for (const sx of [-1, 1]) { pathPts([[cx + sx * 8, y + 2], [cx + sx * 60, y - 10, cx + sx * 66, y + 10], [cx + sx * 60, y + 30, cx + sx * 12, y + 24]]); fillStroke(grad(cx, y - 10, cx, y + 30, [[0, '#3a4a66'], [1, '#101418']]), '#1b1b1f', 2.5); }
+      },
+      outfit: (g, e) => { // 민소매 + 근육질 팔
+        const { cx, top, sw, pathPts, fillStroke, grad, col, LW, ell } = e;
+        for (const sx of [-1, 1]) { // 삼각근/팔
+          pathPts([[cx + sx * 70, top - 6], [cx + sx * sw * 0.9, top - 10, cx + sx * sw * 1.08, top + 90], [cx + sx * sw * 1.16, top + 210, cx + sx * sw * 1.02, 640], [cx + sx * 60, 640]]);
+          fillStroke(grad(cx + sx * 60, top, cx + sx * sw * 1.1, top + 200, [[0, '#e6b388'], [1, '#c5885e']]), col.line, LW);
+          g.strokeStyle = 'rgba(120,70,50,0.45)'; g.lineWidth = 2; g.beginPath(); g.moveTo(cx + sx * sw * 0.8, top + 40); g.quadraticCurveTo(cx + sx * sw * 0.98, top + 110, cx + sx * sw * 0.9, top + 190); g.stroke();
+        }
+        pathPts([[cx - 70, top - 8], [cx - 92, top + 40, cx - 96, top + 160], [cx - 96, 640], [cx + 96, 640], [cx + 96, top + 160], [cx + 92, top + 40, cx + 70, top - 8], [cx, top + 30, cx - 70, top - 8]]);
+        fillStroke(grad(cx - 90, top, cx + 90, 640, [[0, '#f2efe6'], [1, '#cfcabd']]), col.line, LW);
+        pathPts([[cx - 44, top - 14], [cx, top + 22, cx + 44, top - 14], [cx + 28, top + 6, cx, top + 34], [cx - 28, top + 6, cx - 44, top - 14]]); fillStroke('#e3b388', col.line, 2);
+        g.strokeStyle = 'rgba(120,70,50,0.5)'; g.lineWidth = 2; g.beginPath(); g.moveTo(cx - 40, top + 2); g.quadraticCurveTo(cx - 10, top + 14, cx - 4, top + 24); g.moveTo(cx + 40, top + 2); g.quadraticCurveTo(cx + 10, top + 14, cx + 4, top + 24); g.stroke();
+        g.strokeStyle = 'rgba(0,0,0,0.15)'; g.lineWidth = 2; g.beginPath(); g.moveTo(cx, top + 60); g.lineTo(cx, top + 200); g.stroke();
+      },
+    } },
+  { id: 'sera', name: '세라', emoji: '🌺', desc: '물고기가 잘 붙는 베이글 아가씨', trait: '입질 40% 빨리 옴', cheer: 'sway',
+    skin: 0xe9bb9a, hair: 0x5a3220, hat: 'long', earrings: true, eyeScale: 1.2, eyeColor: 0x4a3222, lashes: true, lips: true, lipColor: 0xc24a5a, nose: 0.85, browAngle: -0.18,
+    shirt: 0x243a5e, topKind: 'cotton', crop: true, bust: 1.1, sleeves: 'short', pants: 0x3a4a62, pantsKind: 'denim', shorts: 0.17, shoe: 0xf4f0ea, sole: 0xd8d2c8,
+    body: { shoulder: 0.88, chest: 1.02, waist: 0.7, hip: 1.16, arm: 0.85, leg: 0.95, neck: 0.85 }, scale: 0.97, biteSpeed: 0.6,
+    portrait: {
+      skin: '#f3cdb0', skinShadow: '#c58a6e', hair: '#6b3d26', hairShadow: '#3f2114', hairHi: '#b4785a', eye: '#5a3b26', eyeDark: '#2c1a10', eyeLight: '#a8795a',
+      headW: 94, jaw: 0.25, chin: 128, round: 0.15, neckW: 34, shoulderW: 165, eyeDX: 45, eyeY: 14, eyeW: 50, eyeH: 26, irisR: 0.85, browT: 6, browA: -0.35, browLift: 8, noseLen: 2, mouthY: 82, smile: 7, blush: 0.55, lashes: true, lips: true, lipColor: '#d9566a', browColor: '#4a2a1a', joyEyes: 'arc',
+      foreheadShadow: (cx, cy, hw) => [[cx - hw, cy - 40], [cx - hw * 0.2, cy - 15, cx + hw * 0.6, cy - 52], [cx + hw, cy - 80], [cx + hw, cy - 120], [cx - hw, cy - 120]],
+      hairBack: (g, e) => { // 긴 웨이브 머리 (뒤)
+        const { cx, cy, hw, pathPts, fillStroke, col, grad } = e;
+        pathPts([[cx - hw * 1.1, cy - 60], [cx - hw * 1.5, cy + 120, cx - hw * 1.35, cy + 330], [cx - hw * 1.2, cy + 380, cx - hw * 0.9, cy + 350], [cx - hw * 0.7, cy + 300, cx - hw * 0.55, cy + 360], [cx, cy + 300, cx + hw * 0.55, cy + 360], [cx + hw * 0.7, cy + 300, cx + hw * 0.9, cy + 350], [cx + hw * 1.2, cy + 380, cx + hw * 1.35, cy + 330], [cx + hw * 1.5, cy + 120, cx + hw * 1.1, cy - 60], [cx + hw * 0.6, cy - 170, cx, cy - 168], [cx - hw * 0.6, cy - 170, cx - hw * 1.1, cy - 60]]);
+        fillStroke(grad(cx, cy - 160, cx, cy + 380, [[0, col.hair], [1, col.hairSh]]), col.line, 2.4);
+        g.strokeStyle = 'rgba(0,0,0,0.25)'; g.lineWidth = 2; for (const sx of [-1, 1]) for (let k = 0; k < 3; k++) { g.beginPath(); g.moveTo(cx + sx * (hw * 0.95 + k * 12), cy + 40); g.bezierCurveTo(cx + sx * (hw * 1.45 + k * 8), cy + 150, cx + sx * (hw * 0.9 + k * 10), cy + 230, cx + sx * (hw * 1.2 + k * 6), cy + 340); g.stroke(); }
+      },
+      hairFront: (g, e) => { // 옆으로 넘긴 긴 앞머리
+        const { cx, cy, hw, pathPts, fillStroke, col } = e;
+        const clip = () => pathPts([[cx - hw * 1.08, cy - 20], [cx - hw * 1.15, cy - 125, cx - hw * 0.2, cy - 160], [cx + hw * 0.7, cy - 170, cx + hw * 1.1, cy - 90], [cx + hw * 1.12, cy - 40, cx + hw * 1.0, cy + 10], [cx + hw * 0.95, cy - 40, cx + hw * 0.55, cy - 70], [cx + hw * 0.3, cy - 30, cx + hw * 0.1, cy - 48], [cx - hw * 0.15, cy - 10, cx - hw * 0.45, cy - 30], [cx - hw * 0.7, cy - 45, cx - hw * 0.9, cy + 20], [cx - hw * 1.0, cy - 5, cx - hw * 1.08, cy - 20]]);
+        clip(); fillStroke(col.hair, col.line, 2.4);
+        hairShade(g, e, clip, -100);
+        for (const sx of [-1, 1]) { pathPts([[cx + sx * hw * 1.0, cy - 30], [cx + sx * hw * 1.2, cy + 60, cx + sx * hw * 1.05, cy + 150], [cx + sx * hw * 0.98, cy + 190, cx + sx * hw * 0.85, cy + 150], [cx + sx * hw * 0.85, cy + 60, cx + sx * hw * 0.9, cy - 10]]); fillStroke(col.hair, col.line, 2); }
+      },
+      accessory: (g, e) => { // 귀걸이
+        const { cx, cy, hw, ell } = e; for (const sx of [-1, 1]) { ell(cx + sx * hw * 1.02, cy + 56, 7, 10); g.strokeStyle = '#e2c25a'; g.lineWidth = 2.5; g.stroke(); ell(cx + sx * hw * 1.02, cy + 68, 3.5, 3.5); g.fillStyle = '#f5e08a'; g.fill(); }
+      },
+      outfit: (g, e) => { // 열린 셔츠 + 네이비 크롭 탑
+        const { cx, top, sw, torso, pathPts, fillStroke, grad, col, LW, ell } = e;
+        torso(); fillStroke(grad(cx, top, cx, 640, [[0, '#f6cfb0'], [1, '#e9b995']]), col.line, LW);
+        // 가슴 라인 (은은하게)
+        g.strokeStyle = 'rgba(160,90,70,0.35)'; g.lineWidth = 2; g.beginPath(); g.moveTo(cx - 40, top + 70); g.quadraticCurveTo(cx, top + 120, cx + 40, top + 70); g.stroke();
+        pathPts([[cx - 92, top + 72], [cx - 60, top + 40, cx, top + 112], [cx + 60, top + 40, cx + 92, top + 72], [cx + 100, top + 150, cx + 90, top + 200], [cx - 90, top + 200], [cx - 100, top + 150, cx - 92, top + 72]]);
+        fillStroke(grad(cx - 90, top, cx + 90, top + 200, [[0, '#2f4b78'], [1, '#1d3254']]), col.line, LW);
+        g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = 3; for (const sx of [-1, 1]) { g.beginPath(); g.moveTo(cx + sx * 70, top + 50); g.lineTo(cx + sx * 58, top - 10); g.stroke(); }
+        g.strokeStyle = 'rgba(0,0,0,0.3)'; g.lineWidth = 2; g.beginPath(); g.moveTo(cx, top + 112); g.lineTo(cx, top + 150); g.stroke();
+        for (const sx of [-1, 1]) { // 흰 셔츠 (열림)
+          pathPts([[cx + sx * 52, top - 12], [cx + sx * sw * 0.65, top - 2, cx + sx * sw * 0.98, top + 60], [cx + sx * sw * 1.08, top + 160, cx + sx * sw * 1.02, 640], [cx + sx * sw * 0.45, 640], [cx + sx * sw * 0.42, top + 250, cx + sx * sw * 0.62, top + 150], [cx + sx * sw * 0.7, top + 90, cx + sx * 52, top - 12]]);
+          fillStroke(grad(cx + sx * 50, top, cx + sx * sw, 640, [[0, '#ffffff'], [1, '#e2e0da']]), col.line, LW);
+          pathPts([[cx + sx * 52, top - 12], [cx + sx * 30, top + 30, cx + sx * sw * 0.62, top + 60], [cx + sx * sw * 0.72, top + 40, cx + sx * sw * 0.55, top - 6]]); fillStroke('#f4f3ee', col.line, 2);
+        }
+        ell(cx, top + 60, 4, 4); g.fillStyle = '#e2c25a'; g.fill(); g.strokeStyle = '#e2c25a'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(cx - 36, top - 8); g.quadraticCurveTo(cx, top + 70, cx + 36, top - 8); g.stroke();
+      },
+    } },
+  { id: 'luna', name: '루나', emoji: '🎀', desc: '희귀종을 잘 찾는 귀여운 꼬마', trait: '희귀 어종 2.5배 등장', cheer: 'hop',
+    skin: 0xf4d2bd, hair: 0x4a2a1a, hat: 'twin', ribbon: 0xe8607a, eyeScale: 1.5, eyeColor: 0x3b2a1e, lashes: true, blush: true, lips: true, lipColor: 0xd0706e, nose: 0.75, browAngle: 0.05,
+    shirt: 0xe9b93a, topKind: 'nylon', hoodie: true, pants: 0x4e6b8c, pantsKind: 'denim', shorts: 0.2, leggings: 0x2b2b33, shoe: 0xf4f0ea, sole: 0xe2b8c2,
+    body: { shoulder: 0.8, chest: 0.86, waist: 0.82, hip: 0.9, arm: 0.8, head: 1.12, neck: 0.8 }, scale: 0.78, luck: 2.5,
+    portrait: {
+      skin: '#f8dcc6', skinShadow: '#d99c86', hair: '#5a3422', hairShadow: '#341b10', hairHi: '#a6725a', eye: '#4a6a9a', eyeDark: '#1f2e55', eyeLight: '#9ac0e6',
+      headW: 104, jaw: 0.1, chin: 118, round: 0.5, neckW: 28, shoulderW: 150, eyeDX: 48, eyeY: 24, eyeW: 58, eyeH: 36, irisR: 0.92, browT: 5, browA: 0.1, browLift: 14, noseLen: -2, mouthY: 88, smile: 6, blush: 0.9, blushLines: true, lashes: true, browColor: '#4a2a1a', joyEyes: 'arc', headDrop: 10,
+      foreheadShadow: (cx, cy, hw) => [[cx - hw, cy - 30], [cx, cy - 15, cx + hw, cy - 30], [cx + hw, cy - 120], [cx - hw, cy - 120]],
+      hairBack: (g, e) => { // 양갈래 (트윈테일) 뒤
+        const { cx, cy, hw, pathPts, fillStroke, col, grad } = e;
+        for (const sx of [-1, 1]) {
+          pathPts([[cx + sx * hw * 0.95, cy - 40], [cx + sx * hw * 1.6, cy + 60, cx + sx * hw * 1.45, cy + 220], [cx + sx * hw * 1.4, cy + 290, cx + sx * hw * 1.15, cy + 300], [cx + sx * hw * 1.0, cy + 240, cx + sx * hw * 0.9, cy + 180], [cx + sx * hw * 0.8, cy + 120, cx + sx * hw * 0.8, cy + 40]]);
+          fillStroke(grad(cx, cy, cx, cy + 300, [[0, col.hair], [1, col.hairSh]]), col.line, 2.4);
+          g.strokeStyle = 'rgba(0,0,0,0.25)'; g.lineWidth = 2; g.beginPath(); g.moveTo(cx + sx * hw * 1.1, cy + 60); g.quadraticCurveTo(cx + sx * hw * 1.5, cy + 170, cx + sx * hw * 1.25, cy + 280); g.stroke();
+        }
+        pathPts([[cx - hw * 1.05, cy - 40], [cx - hw * 1.15, cy - 150, cx, cy - 172], [cx + hw * 1.15, cy - 150, cx + hw * 1.05, cy - 40], [cx + hw * 1.05, cy + 80], [cx - hw * 1.05, cy + 80]]); fillStroke(col.hair, col.line, 2.4);
+      },
+      hairFront: (g, e) => { // 가지런한 앞머리
+        const { cx, cy, hw, pathPts, fillStroke, col } = e;
+        const clip = () => pathPts([[cx - hw * 1.06, cy - 20], [cx - hw * 1.15, cy - 130, cx - hw * 0.2, cy - 165], [cx + hw * 0.7, cy - 172, cx + hw * 1.1, cy - 100], [cx + hw * 1.12, cy - 50, cx + hw * 1.0, cy - 10], [cx + hw * 0.9, cy - 48, cx + hw * 0.7, cy - 24], [cx + hw * 0.55, cy - 60, cx + hw * 0.38, cy - 20], [cx + hw * 0.2, cy - 62, cx + hw * 0.02, cy - 18], [cx - hw * 0.15, cy - 64, cx - hw * 0.34, cy - 22], [cx - hw * 0.5, cy - 62, cx - hw * 0.68, cy - 26], [cx - hw * 0.85, cy - 55, cx - hw * 1.06, cy - 20]]);
+        clip(); fillStroke(col.hair, col.line, 2.4);
+        hairShade(g, e, clip, -105);
+      },
+      accessory: (g, e) => { // 리본 머리끈
+        const { cx, cy, hw, pathPts, fillStroke, ell } = e;
+        for (const sx of [-1, 1]) {
+          const bx = cx + sx * hw * 1.0, by = cy - 30;
+          for (const d of [-1, 1]) { pathPts([[bx, by], [bx + sx * 10 + d * 6, by + d * 34, bx + sx * 34, by + d * 26], [bx + sx * 26, by + d * 2, bx, by]]); fillStroke('#ee6f8a', 'rgba(120,30,50,0.8)', 1.8); }
+          ell(bx + sx * 4, by, 7, 7); fillStroke('#f08aa0', 'rgba(120,30,50,0.8)', 1.5);
+        }
+      },
+      outfit: (g, e) => { // 노란 레인코트 (후드 뒤로 넘김) + 토글 단추
+        const { cx, top, sw, torso, pathPts, fillStroke, grad, col, LW, ell } = e;
+        pathPts([[cx - 70, top - 50], [cx - 110, top - 20, cx - 95, top + 40], [cx, top + 60, cx + 95, top + 40], [cx + 110, top - 20, cx + 70, top - 50], [cx, top - 70, cx - 70, top - 50]]); fillStroke('#d9a92e', col.line, LW);
+        torso(); fillStroke(grad(cx - sw, top, cx + sw, 640, [[0, '#f4c23c'], [1, '#d99e22']]), col.line, LW);
+        pathPts([[cx - 36, top - 14], [cx - 60, top + 40, cx - 20, top + 44], [cx, top + 30, cx + 20, top + 44], [cx + 60, top + 40, cx + 36, top - 14], [cx, top + 10, cx - 36, top - 14]]); fillStroke('#e7b530', col.line, 2);
+        g.strokeStyle = 'rgba(0,0,0,0.25)'; g.lineWidth = 2; g.beginPath(); g.moveTo(cx, top + 44); g.lineTo(cx, 640); g.stroke();
+        for (const y of [top + 95, top + 175, top + 255]) { g.strokeStyle = '#3a2f1a'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(cx - 22, y); g.lineTo(cx + 22, y); g.stroke(); ell(cx + 22, y, 10, 5); fillStroke('#5c4a2a', col.line, 1.5); }
+        for (const sx of [-1, 1]) { pathPts([[cx + sx * sw * 0.35, top + 200], [cx + sx * sw * 0.8, top + 200], [cx + sx * sw * 0.8, top + 260], [cx + sx * sw * 0.35, top + 260]]); fillStroke('rgba(0,0,0,0.07)', col.line, 1.8); }
+      },
+    } },
 ];
 const RODS = [
   { id: 'basic',  name: '입문용 로드', emoji: '🎣', desc: '균형 잡힌 기본 장비', cast: 25, line: 1.0,  reel: 1.0,  color: 0x2a2a30, grip: 0x8a6a4a, accent: 0xc8c8c8, len: 2.4, reelType: 'spin', unlock: 0 },
@@ -495,6 +652,138 @@ const dots = (v, max) => { const n = Math.round(v / max * 4); return '●'.repea
 let selChar = CHARACTERS.find(c => c.id === lsGet(LS.char)) || CHARACTERS[0];
 let selRod = RODS.find(r => r.id === lsGet(LS.rod)) || RODS[0];
 let selTime = TIMES.find(t => t.id === lsGet('fishing3d.time')) || TIMES[0];
+
+// ---------- 2D 일러스트 초상 (캔버스 벡터, 모바일 게임 스타일) ----------
+// 480x600 좌표계에서 그린 뒤 원하는 크기로 스케일. mood: 'idle' | 'joy'
+const portraitCache = new Map();
+function drawPortrait(c, mood = 'idle', size = 480) {
+  const key = c.id + mood + size; if (portraitCache.has(key)) return portraitCache.get(key);
+  const P = c.portrait, W = size, H = Math.round(size * 1.25);
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const g = cv.getContext('2d'); g.scale(W / 480, W / 480);
+  const cx = 240, cy = 250 + (P.headDrop || 0), hw = P.headW, joy = mood === 'joy';
+  const col = { skin: P.skin, skinSh: P.skinShadow, line: P.line || 'rgba(35,22,20,0.85)', hair: P.hair, hairSh: P.hairShadow, hairHi: P.hairHi, eye: P.eye };
+  const LW = 2.4;
+  const pathPts = (pts, close = true) => { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) { const p = pts[i]; if (p.length === 4) g.quadraticCurveTo(p[0], p[1], p[2], p[3]); else if (p.length === 6) g.bezierCurveTo(p[0], p[1], p[2], p[3], p[4], p[5]); else g.lineTo(p[0], p[1]); } if (close) g.closePath(); };
+  const fillStroke = (fill, stroke = col.line, lw = LW) => { if (fill) { g.fillStyle = fill; g.fill(); } if (stroke) { g.strokeStyle = stroke; g.lineWidth = lw; g.lineJoin = 'round'; g.stroke(); } };
+  const ell = (x, y, rx, ry, rot = 0) => { g.beginPath(); g.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2); };
+  const grad = (x0, y0, x1, y1, stops) => { const gr = g.createLinearGradient(x0, y0, x1, y1); for (const [k, v] of stops) gr.addColorStop(k, v); return gr; };
+  const rgrad = (x, y, r0, r1, stops) => { const gr = g.createRadialGradient(x, y, r0, x, y, r1); for (const [k, v] of stops) gr.addColorStop(k, v); return gr; };
+  const facePath = () => {
+    const jaw = P.jaw, chinY = cy + P.chin, round = P.round;
+    pathPts([[cx - hw, cy - 25],
+      [cx - hw * 1.0, cy + 40 + round * 20, cx - hw * (0.62 + jaw * 0.2), cy + 95 + round * 10],
+      [cx - hw * (0.3 + jaw * 0.15), chinY, cx, chinY + 2],
+      [cx + hw * (0.3 + jaw * 0.15), chinY, cx + hw * (0.62 + jaw * 0.2), cy + 95 + round * 10],
+      [cx + hw * 1.0, cy + 40 + round * 20, cx + hw, cy - 25],
+      [cx + hw * 1.02, cy - 112, cx, cy - 122],
+      [cx - hw * 1.02, cy - 112, cx - hw, cy - 25]]);
+  };
+  // ===== 몸 (목, 어깨, 옷) =====
+  const neckW = P.neckW;
+  const body = () => {
+    // 목
+    pathPts([[cx - neckW, cy + 70], [cx - neckW * 1.1, cy + 150], [cx + neckW * 1.1, cy + 150], [cx + neckW, cy + 70]]); fillStroke(col.skin, null);
+    g.fillStyle = col.skinSh; g.globalAlpha = 0.55; pathPts([[cx - neckW, cy + 70], [cx - neckW * 1.05, cy + 118], [cx + neckW * 1.05, cy + 118], [cx + neckW, cy + 70], [cx, cy + 100 + P.chin - 90]]); g.fill(); g.globalAlpha = 1;
+    // 어깨/몸통 실루엣
+    const sw = P.shoulderW, top = cy + 150, bot = 640;
+    const torso = () => pathPts([[cx - neckW * 1.3, top - 12], [cx - sw * 0.55, top - 2, cx - sw, top + 55], [cx - sw * 1.04, top + 140, cx - sw * 1.02, bot], [cx + sw * 1.02, bot], [cx + sw * 1.04, top + 140, cx + sw, top + 55], [cx + sw * 0.55, top - 2, cx + neckW * 1.3, top - 12]]);
+    P.outfit(g, { cx, cy, top, bot, sw, neckW, torso, pathPts, fillStroke, ell, grad, rgrad, col, LW, joy });
+  };
+  // ===== 머리카락 뒤 =====
+  if (P.hairBack) P.hairBack(g, { cx, cy, hw, pathPts, fillStroke, ell, grad, col, LW });
+  body();
+  // ===== 얼굴 =====
+  facePath(); fillStroke(col.skin, col.line, LW);
+  // 귀
+  for (const sx of [-1, 1]) { ell(cx + sx * hw * 1.02, cy + 22, 13, 20); fillStroke(col.skin, col.line, LW); ell(cx + sx * hw * 1.0, cy + 24, 6, 10); g.strokeStyle = 'rgba(120,70,60,0.5)'; g.lineWidth = 1.5; g.stroke(); }
+  // 얼굴 음영 (앞머리 아래, 턱 아래, 코 옆)
+  g.save(); facePath(); g.clip();
+  g.fillStyle = col.skinSh; g.globalAlpha = 0.5;
+  if (P.foreheadShadow) { pathPts(P.foreheadShadow(cx, cy, hw)); g.fill(); }
+  g.globalAlpha = 0.28; ell(cx, cy + 60, hw * 0.9, 70); g.fillStyle = rgrad(cx, cy + 30, hw * 0.6, hw * 1.1, [[0, 'rgba(0,0,0,0)'], [1, col.skinSh]]); g.fill();
+  g.globalAlpha = 1; g.restore();
+  // ===== 눈 =====
+  const eyeDX = P.eyeDX, ey = cy + P.eyeY, ew = P.eyeW, eh = P.eyeH;
+  for (const sx of [-1, 1]) {
+    const ex = cx + sx * eyeDX;
+    if (joy && P.joyEyes === 'arc') {
+      g.strokeStyle = col.line; g.lineWidth = 4.2; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(ex - ew / 2, ey + 4); g.quadraticCurveTo(ex, ey - eh * 0.9, ex + ew / 2, ey + 4); g.stroke();
+      continue;
+    }
+    const h = joy ? eh * 0.75 : eh;
+    // 흰자
+    const sclera = () => pathPts([[ex - ew / 2, ey + 2], [ex - ew * 0.2, ey - h * 1.05, ex + ew * 0.25, ey - h * 0.95], [ex + ew / 2, ey - h * 0.35], [ex + ew * 0.35, ey + h * 0.65, ex, ey + h * 0.75], [ex - ew * 0.3, ey + h * 0.7, ex - ew / 2, ey + 2]]);
+    sclera(); fillStroke('#fbfbfb', null);
+    // 홍채
+    g.save(); sclera(); g.clip();
+    const ir = h * P.irisR, ix = ex + sx * ew * 0.03, iy = ey + h * 0.05;
+    ell(ix, iy, ir * 0.92, ir); g.fillStyle = grad(ix, iy - ir, ix, iy + ir, [[0, P.eyeDark], [0.55, col.eye], [1, P.eyeLight]]); g.fill();
+    ell(ix, iy, ir * 0.92, ir); g.strokeStyle = P.eyeDark; g.lineWidth = 2; g.stroke();
+    ell(ix, iy + ir * 0.05, ir * 0.42, ir * 0.5); g.fillStyle = '#161218'; g.fill();
+    // 하이라이트
+    ell(ix - ir * 0.38, iy - ir * 0.42, ir * 0.3, ir * 0.24); g.fillStyle = 'rgba(255,255,255,0.95)'; g.fill();
+    ell(ix + ir * 0.35, iy + ir * 0.4, ir * 0.14, ir * 0.11); g.fillStyle = 'rgba(255,255,255,0.8)'; g.fill();
+    // 눈꺼풀 그림자
+    pathPts([[ex - ew / 2, ey + 2], [ex - ew * 0.2, ey - h * 1.05, ex + ew * 0.25, ey - h * 0.95], [ex + ew / 2, ey - h * 0.35], [ex + ew * 0.2, ey - h * 0.55, ex - ew / 2, ey + 2]]); g.fillStyle = 'rgba(60,30,40,0.22)'; g.fill();
+    g.restore();
+    // 위 속눈썹 (두껍게, 바깥쪽으로 갈수록 굵게)
+    pathPts([[ex - ew / 2, ey + 2], [ex - ew * 0.2, ey - h * 1.08, ex + ew * 0.25, ey - h * 0.98], [ex + ew / 2 + 2, ey - h * 0.38], [ex + ew * 0.5, ey - h * 0.55, ex + ew * 0.24, ey - h * 0.86], [ex - ew * 0.2, ey - h * 0.92, ex - ew / 2, ey + 2]]);
+    g.fillStyle = col.line; g.fill();
+    if (P.lashes) for (let k = 0; k < 3; k++) { const a = -0.9 + k * 0.35, bx = ex + sx * (ew * 0.42 + k * 4), by = ey - h * (0.55 - k * 0.18); g.strokeStyle = col.line; g.lineWidth = 2.2; g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + sx * 9 * Math.cos(a * sx), by - 9 * Math.sin(Math.abs(a))); g.stroke(); }
+    // 아래 눈꺼풀
+    g.strokeStyle = 'rgba(90,50,50,0.55)'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(ex - ew * 0.38, ey + h * 0.62); g.quadraticCurveTo(ex, ey + h * 0.8, ex + ew * 0.42, ey + h * 0.5); g.stroke();
+    if (P.crowsFeet) { g.strokeStyle = 'rgba(90,50,50,0.5)'; g.lineWidth = 1.5; for (let k = 0; k < 2; k++) { g.beginPath(); g.moveTo(ex + sx * (ew * 0.55 + 4), ey - 4 + k * 10); g.lineTo(ex + sx * (ew * 0.55 + 16), ey - 10 + k * 16); g.stroke(); } }
+    if (P.eyeBags) { g.strokeStyle = 'rgba(90,50,50,0.35)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(ex - ew * 0.3, ey + h * 1.1); g.quadraticCurveTo(ex, ey + h * 1.35, ex + ew * 0.35, ey + h * 1.05); g.stroke(); }
+    // 쌍꺼풀 선
+    g.strokeStyle = 'rgba(70,35,35,0.4)'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(ex - ew * 0.3, ey - h * 1.05); g.quadraticCurveTo(ex + ew * 0.05, ey - h * 1.3, ex + ew * 0.42, ey - h * 0.78); g.stroke();
+  }
+  // ===== 눈썹 =====
+  for (const sx of [-1, 1]) {
+    const ex = cx + sx * eyeDX, by = ey - eh * 1.35 - P.browLift - (joy ? 6 : 0), t = P.browT, a = P.browA;
+    pathPts([[ex - sx * ew * 0.42, by + 4], [ex - sx * ew * 0.1, by - t * 0.9, ex + sx * ew * 0.52, by - a * 10 - t * 0.2], [ex + sx * ew * 0.56, by - a * 10 + t * 0.9], [ex + sx * ew * 0.1, by + t * 0.7, ex - sx * ew * 0.42, by + 4]]);
+    g.fillStyle = P.browColor || col.hairSh; g.fill();
+  }
+  // ===== 코 =====
+  g.strokeStyle = 'rgba(110,60,55,0.75)'; g.lineWidth = 2; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(cx + 4, cy + 30 + P.noseLen * 0.2); g.quadraticCurveTo(cx + 9, cy + 46 + P.noseLen, cx + 1, cy + 50 + P.noseLen); g.stroke();
+  g.fillStyle = col.skinSh; g.globalAlpha = 0.35; ell(cx + 5, cy + 44 + P.noseLen * 0.8, 7, 9); g.fill(); g.globalAlpha = 1;
+  // ===== 입 =====
+  const my = cy + P.mouthY;
+  if (joy) {
+    pathPts([[cx - 24, my - 4], [cx, my - 1, cx + 24, my - 4], [cx + 20, my + 24, cx, my + 28], [cx - 20, my + 24, cx - 24, my - 4]]); fillStroke('#7a2d33', col.line, 2);
+    g.save(); pathPts([[cx - 24, my - 4], [cx, my - 1, cx + 24, my - 4], [cx + 20, my + 24, cx, my + 28], [cx - 20, my + 24, cx - 24, my - 4]]); g.clip();
+    g.fillStyle = '#fff'; g.fillRect(cx - 22, my - 6, 44, 7); ell(cx, my + 30, 16, 12); g.fillStyle = '#d9636f'; g.fill(); g.restore();
+    if (P.lips) { g.strokeStyle = P.lipColor; g.lineWidth = 3.5; g.beginPath(); g.moveTo(cx - 24, my - 4); g.quadraticCurveTo(cx, my - 2, cx + 24, my - 4); g.stroke(); }
+  } else {
+    if (P.lips) { pathPts([[cx - 20, my - 2], [cx - 8, my - 8, cx, my - 5], [cx + 8, my - 8, cx + 20, my - 2], [cx + 8, my + 12, cx, my + 13], [cx - 8, my + 12, cx - 20, my - 2]]); fillStroke(P.lipColor, 'rgba(120,40,50,0.7)', 1.6); ell(cx - 5, my + 4, 5, 2.5); g.fillStyle = 'rgba(255,255,255,0.5)'; g.fill(); }
+    g.strokeStyle = col.line; g.lineWidth = 2.6; g.beginPath(); g.moveTo(cx - 19, my - 1); g.quadraticCurveTo(cx, my + (P.smile || 8), cx + 19, my - 1); g.stroke();
+    if (!P.lips) { g.strokeStyle = 'rgba(255,255,255,0.0)'; }
+  }
+  // ===== 볼 홍조 =====
+  if (P.blush > 0) for (const sx of [-1, 1]) { const bx = cx + sx * (eyeDX + 12), by = cy + P.eyeY + 42; ell(bx, by, 26, 15); g.fillStyle = rgrad(bx, by, 2, 26, [[0, `rgba(240,120,130,${0.45 * P.blush})`], [1, 'rgba(240,120,130,0)']]); g.fill(); if (P.blushLines) { g.strokeStyle = `rgba(220,100,110,${0.6 * P.blush})`; g.lineWidth = 1.5; for (let k = -1; k <= 1; k++) { g.beginPath(); g.moveTo(bx + k * 8 - 3, by - 6); g.lineTo(bx + k * 8 + 3, by + 6); g.stroke(); } } }
+  // ===== 수염 =====
+  if (P.beard) P.beard(g, { cx, cy, hw, pathPts, fillStroke, ell, grad, col, LW, my });
+  // ===== 머리카락 앞 =====
+  if (P.hairFront) P.hairFront(g, { cx, cy, hw, pathPts, fillStroke, ell, grad, rgrad, col, LW });
+  // ===== 모자/액세서리 =====
+  if (P.accessory) P.accessory(g, { cx, cy, hw, pathPts, fillStroke, ell, grad, rgrad, col, LW, eyeDX, ey });
+  portraitCache.set(key, cv);
+  return cv;
+}
+// 공통 머리카락 셰이딩: 뿌리 쪽 어둡게, 정수리 하이라이트 띠
+function hairShade(g, { cx, cy, hw, col, ell, rgrad, pathPts }, clipFn, hiY = -70) {
+  g.save(); clipFn(); g.clip();
+  g.fillStyle = rgrad(cx, cy - 40, hw * 0.4, hw * 1.5, [[0, 'rgba(0,0,0,0)'], [1, col.hairSh]]); g.globalAlpha = 0.55; g.fillRect(0, 0, 480, 600);
+  g.globalAlpha = 0.5; g.fillStyle = col.hairHi;
+  pathPts([[cx - hw * 0.9, cy + hiY + 2], [cx - hw * 0.4, cy + hiY - 26, cx + hw * 0.2, cy + hiY - 14], [cx + hw * 0.75, cy + hiY - 4], [cx + hw * 0.3, cy + hiY + 6, cx - hw * 0.3, cy + hiY + 14], [cx - hw * 0.7, cy + hiY + 10]]); g.fill();
+  g.globalAlpha = 1; g.restore();
+}
+function strandsFront(g, env, strands, color = env.col.hair) {
+  // strands: [[x0,y0],[cx1,cy1,x1,y1]...] 각각 뿌리 두 점 + 끝점으로 이루어진 다각형
+  for (const st of strands) { env.pathPts(st); env.fillStroke(color, env.col.line, env.LW); }
+}
 
 // ---------- 파도 ----------
 const WAVES = [
@@ -705,6 +994,7 @@ const sfx = (() => {
     catch: () => { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.22, 'triangle', 0.14, 0, i * 0.11)); },
     legend: () => { [523, 659, 784, 1046, 1318].forEach((f, i) => tone(f, 0.3, 'triangle', 0.15, 0, i * 0.12)); },
     tick: () => tone(1000, 0.04, 'square', 0.05),
+    gull: () => { const n = 1 + Math.floor(Math.random() * 3); for (let i = 0; i < n; i++) { tone(1150 + Math.random() * 200, 0.22, 'sawtooth', 0.025, -450, i * 0.28); tone(1700, 0.08, 'triangle', 0.012, -300, i * 0.28); } },
     engine: (dur) => { tone(52, dur, 'sawtooth', 0.05, 8); tone(78, dur, 'triangle', 0.03, 6); },
   };
 })();
@@ -832,15 +1122,27 @@ for (let i = 0; i < 18; i++) {
 // 갈매기
 const gulls = [];
 {
-  const gm = new THREE.MeshBasicMaterial({ color: 0xf7f7f7, fog: true, side: THREE.DoubleSide });
-  for (let i = 0; i < 6; i++) {
-    const g = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.SphereGeometry(0.18, 6, 5), gm); body.scale.set(2, 0.8, 1); g.add(body);
-    const wl = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.03, 1.2), gm); wl.position.z = -0.6; wl.geometry.translate(0, 0, 0); g.add(wl);
-    const wr = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.03, 1.2), gm); wr.position.z = 0.6; g.add(wr);
-    wl.geometry = new THREE.BoxGeometry(0.25, 0.03, 1.2).translate(0, 0, -0.6); wl.position.z = 0;
-    wr.geometry = new THREE.BoxGeometry(0.25, 0.03, 1.2).translate(0, 0, 0.6); wr.position.z = 0;
-    g.userData = { wl, wr, r: rand(25, 60), h: rand(10, 22), a: rand(0, Math.PI * 2), sp: rand(0.12, 0.25) * (Math.random() < 0.5 ? 1 : -1), cx: rand(-20, 20), cz: rand(-60, -25), ph: rand(0, 6) };
+  const gm = new THREE.MeshStandardMaterial({ color: 0xf4f4f2, roughness: 0.9, side: THREE.DoubleSide });
+  const gray = new THREE.MeshStandardMaterial({ color: 0x9aa3ab, roughness: 0.9, side: THREE.DoubleSide });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x22262b, roughness: 0.8 });
+  const wingShape = new THREE.Shape(); wingShape.moveTo(0, 0); wingShape.quadraticCurveTo(0.9, 0.08, 1.55, -0.12); wingShape.quadraticCurveTo(1.2, 0.12, 0.7, 0.22); wingShape.quadraticCurveTo(0.3, 0.3, 0, 0.26); wingShape.closePath();
+  for (let i = 0; i < 14; i++) {
+    const g = new THREE.Group(); const sc = rand(0.8, 1.15);
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), gm); body.scale.set(2.2, 0.9, 1); g.add(body);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), gm); head.position.set(0.42, 0.1, 0); g.add(head);
+    const beak = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.22, 6), new THREE.MeshStandardMaterial({ color: 0xe8a23a })); beak.rotation.z = -Math.PI / 2; beak.position.set(0.62, 0.08, 0); g.add(beak);
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.02, 0.22), gm); tail.position.set(-0.45, 0.02, 0); g.add(tail);
+    const wings = {};
+    for (const [key, sgn] of [['wl', 1], ['wr', -1]]) {
+      const pivot = new THREE.Group(); pivot.position.set(0.05, 0.08, sgn * 0.12); g.add(pivot);
+      const w = new THREE.Mesh(new THREE.ShapeGeometry(wingShape), gray); w.rotation.x = -Math.PI / 2; w.scale.set(1, sgn, 1); pivot.add(w);
+      const tip = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.015, 0.1), dark); tip.position.set(1.45, 0, sgn * 0.1); pivot.add(tip);
+      wings[key] = pivot;
+    }
+    g.scale.setScalar(sc);
+    const near = i < 6;
+    g.userData = { wl: wings.wl, wr: wings.wr, r: near ? rand(8, 22) : rand(25, 70), h: near ? rand(5, 12) : rand(10, 24), a: rand(0, Math.PI * 2), sp: rand(0.15, 0.3) * (Math.random() < 0.5 ? 1 : -1), cx: near ? rand(-8, 8) : rand(-30, 30), cz: near ? rand(-30, -8) : rand(-70, -25), ph: rand(0, 6), glide: rand(0, 1), dive: 0 };
+    g.traverse(o => { if (o.isMesh) o.castShadow = false; });
     world.add(g); gulls.push(g);
   }
 }
@@ -1029,6 +1331,86 @@ scene.add(seabed);
 
 // ---------- 섬 ----------
 const lighthouses = [], villageLights = [];
+// 건물 텍스처: 벽(창문 포함)과 밤 창문 발광 마스크
+const wallTexCache = new Map();
+function makeWallTextures(wallHex, floors, cols, glass) {
+  const key = wallHex + '/' + floors + '/' + cols + '/' + (glass ? 1 : 0); if (wallTexCache.has(key)) return wallTexCache.get(key);
+  const W = 256, H = 64 * Math.min(floors, 8);
+  const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+  const e = document.createElement('canvas'); e.width = W; e.height = H; const ge = e.getContext('2d');
+  const [r, gg, b] = hex2rgb(wallHex);
+  g.fillStyle = `rgb(${r},${gg},${b})`; g.fillRect(0, 0, W, H);
+  // 벽 얼룩
+  for (let i = 0; i < 300; i++) { g.fillStyle = `rgba(0,0,0,${Math.random() * 0.06})`; g.fillRect(Math.random() * W, Math.random() * H, 2 + Math.random() * 6, 2 + Math.random() * 6); }
+  ge.fillStyle = '#000'; ge.fillRect(0, 0, W, H);
+  const fh = H / Math.min(floors, 8), cw = W / cols;
+  for (let f = 0; f < Math.min(floors, 8); f++) for (let k = 0; k < cols; k++) {
+    const x = k * cw + cw * 0.22, y = f * fh + fh * 0.28, w = cw * 0.56, h = fh * 0.46;
+    if (glass) { g.fillStyle = `rgb(${90 + Math.random() * 20},${130 + Math.random() * 20},${170})`; g.fillRect(k * cw + 2, f * fh + 2, cw - 4, fh - 4); }
+    g.fillStyle = '#2a3340'; g.fillRect(x - 2, y - 2, w + 4, h + 4);
+    g.fillStyle = Math.random() < 0.5 ? '#6f8aa6' : '#55708c'; g.fillRect(x, y, w, h);
+    g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(x + 1, y + 1, w * 0.45, h * 0.35);
+    g.fillStyle = `rgba(${r},${gg},${b},0.9)`; g.fillRect(x + w / 2 - 1, y, 2, h);
+    if (Math.random() < 0.75) { ge.fillStyle = Math.random() < 0.5 ? '#ffd58a' : '#ffe9b8'; ge.fillRect(x, y, w, h); }
+    // 층 구분선 / 발코니
+    g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(0, f * fh + fh - 3, W, 3);
+  }
+  const map = new THREE.CanvasTexture(c); map.colorSpace = THREE.SRGBColorSpace; map.wrapS = map.wrapT = THREE.RepeatWrapping;
+  const emis = new THREE.CanvasTexture(e); emis.colorSpace = THREE.SRGBColorSpace; emis.wrapS = emis.wrapT = THREE.RepeatWrapping;
+  const out = { map, emis }; wallTexCache.set(key, out); return out;
+}
+let roofTileTex = null;
+function makeRoofTexture(hex) {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128; const g = c.getContext('2d');
+  const [r, gg, b] = hex2rgb(hex); g.fillStyle = `rgb(${r},${gg},${b})`; g.fillRect(0, 0, 128, 128);
+  for (let y = 0; y < 128; y += 16) { g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(0, y + 13, 128, 3); for (let x = (y / 16 % 2) * 8; x < 128; x += 16) { g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(x, y, 7, 12); } }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+}
+const roofTexCache = new Map();
+function buildHouse(parent, x, y, z, rot, o) {
+  const { w, d, floors = 1, wall, roof, hip = false, flat = false, steeple = false, warehouse = false, glass = false } = o;
+  const fh = warehouse ? 6 : 3.2, H = floors * fh;
+  const cols = Math.max(2, Math.round(w / 2.2));
+  const tex = makeWallTextures(wall, floors, cols, glass);
+  const mat = new THREE.MeshStandardMaterial({ map: tex.map, emissiveMap: tex.emis, emissive: 0xffd080, emissiveIntensity: 0, roughness: 0.85 });
+  mat.map.repeat.set(1, floors / Math.min(floors, 8)); mat.emissiveMap.repeat.copy(mat.map.repeat);
+  villageLights.push(mat);
+  const grp = new THREE.Group(); grp.position.set(x, y, z); grp.rotation.y = rot; parent.add(grp);
+  const box = new THREE.Mesh(new THREE.BoxGeometry(w, H, d), mat); box.position.y = H / 2; grp.add(box);
+  // 1층 문
+  const door = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.2, 0.15), new THREE.MeshStandardMaterial({ color: 0x4a3524, roughness: 0.8 })); door.position.set(w * 0.25, 1.1, -d / 2 - 0.05); grp.add(door);
+  if (flat) {
+    const parapet = new THREE.Mesh(new THREE.BoxGeometry(w + 0.4, 0.5, d + 0.4), new THREE.MeshStandardMaterial({ color: roof, roughness: 0.9 })); parapet.position.y = H + 0.2; grp.add(parapet);
+    if (warehouse) { const rr = new THREE.Mesh(new THREE.CylinderGeometry(w / 2, w / 2, d, 12, 1, false, 0, Math.PI), new THREE.MeshStandardMaterial({ color: roof, roughness: 0.6, metalness: 0.3 })); rr.rotation.z = Math.PI / 2; rr.rotation.y = Math.PI / 2; rr.position.y = H; rr.scale.y = 0.5; grp.add(rr); }
+    else if (floors > 3) { const hut = new THREE.Mesh(new THREE.BoxGeometry(w * 0.3, 2.2, d * 0.25), new THREE.MeshStandardMaterial({ color: 0x8f949a })); hut.position.set(w * 0.2, H + 1.1, 0); grp.add(hut); }
+  } else {
+    if (!roofTexCache.has(roof)) roofTexCache.set(roof, makeRoofTexture(roof));
+    const rt = roofTexCache.get(roof); rt.repeat.set(d / 4, w / 4);
+    const rh = w * 0.42, ov = 0.6;
+    const roofMat = new THREE.MeshStandardMaterial({ map: rt, roughness: 0.9 });
+    const gableMat = new THREE.MeshStandardMaterial({ color: wall, roughness: 0.85 });
+    if (hip) {
+      const geo = new THREE.ConeGeometry(Math.hypot(w, d) / 2 + ov, rh, 4); geo.rotateY(Math.PI / 4); geo.scale(w / Math.hypot(w, d), 1, d / Math.hypot(w, d));
+      const r = new THREE.Mesh(geo, roofMat); r.position.y = H + rh / 2; grp.add(r);
+    } else {
+      const shape = new THREE.Shape(); shape.moveTo(-w / 2 - ov, 0); shape.lineTo(w / 2 + ov, 0); shape.lineTo(0, rh); shape.closePath();
+      const geo = new THREE.ExtrudeGeometry(shape, { depth: d + ov * 2, bevelEnabled: false }); geo.translate(0, 0, -(d + ov * 2) / 2);
+      const r = new THREE.Mesh(geo, [gableMat, roofMat]); r.position.y = H - 0.05; grp.add(r);
+      // 측면(지붕 경사면)에 기와 텍스처가 입혀지도록 머티리얼 그룹 재설정
+      geo.clearGroups(); geo.addGroup(0, geo.attributes.position.count, 1);
+      const capShape = new THREE.Shape(); capShape.moveTo(-w / 2, 0); capShape.lineTo(w / 2, 0); capShape.lineTo(0, rh - 0.02); capShape.closePath();
+      for (const sgn of [-1, 1]) { const cap = new THREE.Mesh(new THREE.ShapeGeometry(capShape), gableMat); cap.position.set(0, H - 0.04, sgn * (d / 2 + 0.01)); if (sgn < 0) cap.rotation.y = Math.PI; grp.add(cap); }
+    }
+    const chimney = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.2, 0.9), new THREE.MeshStandardMaterial({ color: 0x7a6a60 })); chimney.position.set(w * 0.28, H + rh * 0.55, d * 0.25); grp.add(chimney);
+  }
+  if (steeple) {
+    const tower = new THREE.Mesh(new THREE.BoxGeometry(3.4, H + 9, 3.4), mat); tower.position.set(0, (H + 9) / 2, -d / 2 + 2.2); grp.add(tower);
+    const spire = new THREE.Mesh(new THREE.ConeGeometry(2.4, 6, 4), new THREE.MeshStandardMaterial({ color: roof, roughness: 0.8 })); spire.rotation.y = Math.PI / 4; spire.position.set(0, H + 12, -d / 2 + 2.2); grp.add(spire);
+    const cross = new THREE.Mesh(new THREE.BoxGeometry(0.25, 2.2, 0.25), new THREE.MeshStandardMaterial({ color: 0xe8d9a0 })); cross.position.set(0, H + 16, -d / 2 + 2.2); grp.add(cross);
+    const crossH = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.25, 0.25), cross.material); crossH.position.set(0, H + 16.5, -d / 2 + 2.2); grp.add(crossH);
+  }
+  return grp;
+}
 function buildIsland(isl) {
   const RINGS = 32, SEG = 84, pos = [], col = [], idx = [];
   const sand = [0.85, 0.78, 0.6], grass = [0.27, 0.48, 0.25], dark = [0.18, 0.34, 0.2], rock = [0.4, 0.4, 0.38];
@@ -1087,23 +1469,48 @@ function buildIsland(isl) {
     const roof = new THREE.Mesh(new THREE.ConeGeometry(3, 3.5, 10), new THREE.MeshStandardMaterial({ color: 0xd63a3a })); roof.position.set(x, h + 31.5, z); g.add(roof);
     lighthouses.push({ mat: lampMat, phase: isl.seed });
   }
+  const groundAt = (x, z) => { const a = Math.atan2(z, x), rr = Math.hypot(x, z), t = rr / (islandRadiusAt(isl, a) * 1.06); return isl.h * Math.pow(Math.max(0, 1 - t * t), 1.25) * (0.72 + 0.2 * n2(x / isl.r * 2, z / isl.r * 2) + 0.08 * n2(x / isl.r * 6 + 3, z / isl.r * 6)); };
   if (isl.village) {
-    const wall = new THREE.MeshStandardMaterial({ color: 0xf2efe6, roughness: 0.8 }), roofM = new THREE.MeshStandardMaterial({ color: 0xd9743b, roughness: 0.8 });
-    const winMat = new THREE.MeshStandardMaterial({ color: 0xffe9a8, emissive: 0xffd080, emissiveIntensity: 0, roughness: 0.5 });
     const a0 = Math.PI * 0.35; // 항구 쪽 해안
-    for (let k = 0; k < 9; k++) {
-      const a = a0 + rand(-0.45, 0.45), rr = islandRadiusAt(isl, a) * rand(0.8, 0.95);
-      const x = Math.cos(a) * rr, z = Math.sin(a) * rr, t = rr / (islandRadiusAt(isl, a) * 1.06);
-      const h = isl.h * Math.pow(Math.max(0, 1 - t * t), 1.25) * (0.75 + 0.25 * n2(x / isl.r * 2, z / isl.r * 2));
-      const w = rand(5, 8), d = rand(5, 8), hh = rand(4, 6);
-      const house = new THREE.Mesh(new THREE.BoxGeometry(w, hh, d), wall); house.position.set(x, Math.max(h, 1) + hh / 2, z); house.rotation.y = rand(0, 1); g.add(house);
-      const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.75, 3, 4), roofM); roof.position.set(x, Math.max(h, 1) + hh + 1.5, z); roof.rotation.y = house.rotation.y + Math.PI / 4; g.add(roof);
-      const win = new THREE.Mesh(new THREE.BoxGeometry(w * 1.02, 1.5, d * 1.02), winMat); win.position.set(x, Math.max(h, 1) + hh * 0.55, z); win.rotation.y = house.rotation.y; g.add(win);
+    const palette = [[0xf3efe4, 0xb8472e], [0xe9e2d2, 0x4a5563], [0xd7e3ea, 0xb8472e], [0xf0dcc8, 0x6d5a4a], [0xe4ecd8, 0x3f6b7a], [0xf6f1e8, 0xa5542f]];
+    for (let k = 0; k < 14; k++) {
+      const a = a0 + rand(-0.5, 0.5), rr = islandRadiusAt(isl, a) * rand(0.72, 0.96);
+      const x = Math.cos(a) * rr, z = Math.sin(a) * rr, h = Math.max(groundAt(x, z), 1.2);
+      const [wc, rc] = palette[k % palette.length];
+      buildHouse(g, x, h, z, rand(0, Math.PI), { w: rand(6, 9), d: rand(6, 10), floors: Math.random() < 0.3 ? 2 : 1, wall: wc, roof: rc, hip: Math.random() < 0.4 });
     }
-    villageLights.push(winMat);
-    // 방파제
-    const pier = new THREE.Mesh(new THREE.BoxGeometry(60, 3, 6), new THREE.MeshStandardMaterial({ color: 0x8a8a84, roughness: 0.9 }));
-    const rr = islandRadiusAt(isl, a0) * 1.1; pier.position.set(Math.cos(a0) * rr + 20, 1, Math.sin(a0) * rr); pier.rotation.y = -a0 + Math.PI / 2 + 0.6; g.add(pier);
+    // 교회 (첨탑), 창고, 항구 등대, 정박한 어선
+    { const a = a0 + 0.62, rr = islandRadiusAt(isl, a) * 0.7, x = Math.cos(a) * rr, z = Math.sin(a) * rr, h = Math.max(groundAt(x, z), 1.2);
+      buildHouse(g, x, h, z, a + Math.PI / 2, { w: 8, d: 14, floors: 2, wall: 0xf7f4ec, roof: 0x4a5563, steeple: true }); }
+    { const a = a0 - 0.5, rr = islandRadiusAt(isl, a) * 0.9, x = Math.cos(a) * rr, z = Math.sin(a) * rr, h = Math.max(groundAt(x, z), 1.2);
+      buildHouse(g, x, h, z, a + Math.PI / 2, { w: 10, d: 22, floors: 1, wall: 0x9fa7ad, roof: 0x5b6670, flat: true, warehouse: true }); }
+    const pierMat = new THREE.MeshStandardMaterial({ color: 0x8a8a84, roughness: 0.95 });
+    const rr = islandRadiusAt(isl, a0) * 1.1, px = Math.cos(a0) * rr + 20, pz = Math.sin(a0) * rr, prot = -a0 + Math.PI / 2 + 0.6;
+    const pier = new THREE.Mesh(new THREE.BoxGeometry(60, 3, 6), pierMat); pier.position.set(px, 1, pz); pier.rotation.y = prot; g.add(pier);
+    const pierTop = new THREE.Mesh(new THREE.BoxGeometry(60, 0.3, 6.4), new THREE.MeshStandardMaterial({ color: 0xb9b6ad, roughness: 0.9 })); pierTop.position.set(px, 2.6, pz); pierTop.rotation.y = prot; g.add(pierTop);
+    const endX = px + Math.cos(prot) * 30, endZ = pz - Math.sin(prot) * 30;
+    const lt = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.4, 9, 10), new THREE.MeshStandardMaterial({ color: 0xf4f4f0 })); lt.position.set(endX, 7, endZ); g.add(lt);
+    const ltTop = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 1.6, 10), new THREE.MeshStandardMaterial({ color: 0xd63a3a })); ltTop.position.set(endX, 12.2, endZ); g.add(ltTop);
+    const ltLamp = new THREE.MeshStandardMaterial({ color: 0xfff2b0, emissive: 0xffd080, emissiveIntensity: 0.2 }); const ltL = new THREE.Mesh(new THREE.SphereGeometry(0.9, 8, 6), ltLamp); ltL.position.set(endX, 13.4, endZ); g.add(ltL); lighthouses.push({ mat: ltLamp, phase: isl.seed + 2 });
+    for (let k = 0; k < 4; k++) {
+      const bx = px + Math.cos(prot) * (-20 + k * 13) + Math.sin(prot) * 7, bz = pz - Math.sin(prot) * (-20 + k * 13) + Math.cos(prot) * 7;
+      const boat = new THREE.Group();
+      const hull = new THREE.Mesh(new THREE.BoxGeometry(7, 1.6, 2.6), new THREE.MeshStandardMaterial({ color: [0xf2f2ee, 0x2d5b8e, 0xe0b23a, 0xf2f2ee][k], roughness: 0.6 })); hull.position.y = 0.6; boat.add(hull);
+      const bow = new THREE.Mesh(new THREE.BoxGeometry(1.9, 1.6, 1.9), hull.material); bow.rotation.y = Math.PI / 4; bow.position.set(3.9, 0.6, 0); boat.add(bow);
+      const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.6, 1.8), new THREE.MeshStandardMaterial({ color: 0xf6f6f2 })); cabin.position.set(-0.8, 2.1, 0); boat.add(cabin);
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(7.05, 0.2, 2.65), new THREE.MeshStandardMaterial({ color: 0x1b3b6f })); stripe.position.y = 1.0; boat.add(stripe);
+      boat.position.set(bx, 0, bz); boat.rotation.y = prot + rand(-0.2, 0.2); g.add(boat);
+    }
+  }
+  if (isl.town) { // 큰섬 해안 도시: 아파트 단지와 타워
+    const a0 = Math.PI * 1.15;
+    for (let k = 0; k < 11; k++) {
+      const a = a0 + rand(-0.45, 0.45), rr = islandRadiusAt(isl, a) * rand(0.62, 0.9);
+      const x = Math.cos(a) * rr, z = Math.sin(a) * rr, h = Math.max(groundAt(x, z), 1.5);
+      buildHouse(g, x, h, z, a + Math.PI / 2 + rand(-0.2, 0.2), { w: rand(9, 13), d: rand(18, 30), floors: 6 + Math.floor(Math.random() * 9), wall: [0xd9d6cf, 0xc9c4ba, 0xe4e0d8, 0xb9b8b4][k % 4], roof: 0x6b6f75, flat: true });
+    }
+    { const a = a0, rr = islandRadiusAt(isl, a) * 0.5, x = Math.cos(a) * rr, z = Math.sin(a) * rr, h = Math.max(groundAt(x, z), 1.5);
+      buildHouse(g, x, h, z, a, { w: 14, d: 14, floors: 24, wall: 0x9fb4c4, roof: 0x4f5a66, flat: true, glass: true }); }
   }
   g.position.set(isl.x, -0.2, isl.z);
   return g;
@@ -1133,7 +1540,6 @@ function makeDeckTexture() {
   const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
   return t;
 }
-const hex2rgb = (h) => [(h >> 16) & 255, (h >> 8) & 255, h & 255];
 const fishTexCache = new Map();
 function makeFishTexture(sp) {
   if (fishTexCache.has(sp.name)) return fishTexCache.get(sp.name);
@@ -1190,6 +1596,16 @@ function makeFishTexture(sp) {
       } else if (P === 'tuna') {
         if (s > 0.35) { const w = Math.sin(u * 60 + s * 10); if (w > 0.6) col = mix3(col, [40, 70, 110], 0.3); }
         if (s < -0.2) col = mix3(col, [255, 255, 255], 0.15 + 0.1 * Math.sin(u * 90) * Math.sin(s * 30));
+      } else if (P === 'marlin') {
+        if (s > -0.2) { const b = Math.sin(u * 44 + s * 2.0); if (b > 0.72) col = mix3(col, [150, 205, 240], 0.5 * Math.min(1, (s + 0.2) * 3)); }
+        if (s > 0.5) col = mix3(col, [10, 30, 70], 0.3);
+      } else if (P === 'shark') {
+        if (Math.abs(s) < 0.4 && u > 0.2 && u < 0.29) { const k = ((u - 0.2) / 0.09 * 5) % 1; if (k < 0.3) col = mix3(col, [20, 25, 35], 0.6); }
+        col = mix3(col, s > 0 ? back : belly, 0.2);
+      } else if (P === 'mahi') {
+        col = mix3(col, [40, 140, 100], Math.max(0, s) * 0.5);
+        if (s < 0.3) col = mix3(col, [250, 220, 90], Math.max(0, 0.3 - s) * 0.6);
+        { const sx = u * 30, sy = v * 20, fx = sx % 1 - 0.5, fy = sy % 1 - 0.5; if (fx * fx + fy * fy < 0.015 && n2(Math.floor(sx), Math.floor(sy)) > 0.5) col = mix3(col, [20, 60, 60], 0.6); }
       } else if (P === 'flounder') {
         if (s > 0) {
           const nv = vnoise(u * 5, v * 6);
@@ -1294,8 +1710,9 @@ function fishFinsGeometry(sp, L) {
   let tail;
   if (sp.tail === 'fork') tail = finShape([[0.02, 0.04], [-0.24, 0.24], [-0.19, 0.0], [-0.24, -0.24], [0.02, -0.04]]);
   else if (sp.tail === 'lunate') tail = finShape([[0.02, 0.03], [-0.08, 0.26], [-0.17, 0.3], [-0.12, 0], [-0.17, -0.3], [-0.08, -0.26], [0.02, -0.03]]);
+  else if (sp.tail === 'shark') tail = finShape([[0.02, 0.03], [-0.12, 0.3], [-0.22, 0.38], [-0.18, 0.04], [-0.24, -0.15], [-0.12, -0.13], [0.02, -0.03]]);
   else { tail = new THREE.Shape(); tail.moveTo(0.02, 0.07); tail.quadraticCurveTo(-0.25, 0.22, -0.25, 0); tail.quadraticCurveTo(-0.25, -0.22, 0.02, -0.07); tail.closePath(); }
-  const tailScale = sp.tail === 'lunate' ? 0.75 : 0.7;
+  const tailScale = sp.tail === 'lunate' ? 0.75 : sp.tail === 'shark' ? 0.9 : 0.7;
   add(tail, g => { g.scale(tailScale, tailScale * (sp.flat ? 0.8 : 1), 1); if (sp.flat) g.rotateX(Math.PI / 2); g.translate(-L * 0.49, 0, 0); });
   // 등/뒷지느러미
   const ridge = (t0, t1, hf, sign) => {
@@ -1319,6 +1736,9 @@ function fishFinsGeometry(sp, L) {
     if (D === 'spiny') add(ridge(0.26, 0.72, k => 0.17 * (0.3 + 0.7 * Math.pow(1 - k, 0.6)) + 0.03 * Math.abs(Math.sin(k * Math.PI * 9)), 1));
     else if (D === 'soft') add(ridge(0.32, 0.74, k => 0.11 * (0.4 + 0.6 * Math.pow(1 - k, 0.8)), 1));
     else if (D === 'twin') { add(ridge(0.25, 0.46, k => 0.16 * Math.pow(1 - k, 0.7) + 0.02, 1)); add(ridge(0.52, 0.74, k => 0.1 * Math.pow(1 - k, 0.5) + 0.02, 1)); }
+    else if (D === 'sail') { add(ridge(0.19, 0.62, k => 0.46 * Math.pow(1 - k, 1.25) + 0.03, 1)); add(ridge(0.74, 0.82, k => 0.08 * Math.pow(1 - k, 1.2) + 0.01, 1)); }
+    else if (D === 'shark') { add(ridge(0.3, 0.5, k => 0.3 * Math.pow(1 - k, 0.85) + 0.02, 1)); add(ridge(0.7, 0.78, k => 0.08 * Math.pow(1 - k, 1.1) + 0.01, 1)); }
+    else if (D === 'long') add(ridge(0.14, 0.9, k => 0.16 - 0.04 * k + 0.02 * Math.sin(k * Math.PI), 1));
     else if (D === 'sickle') { add(ridge(0.28, 0.4, k => 0.2 * Math.pow(1 - k, 1.6) + 0.01, 1)); add(ridge(0.52, 0.62, k => 0.16 * Math.pow(1 - k, 1.4) + 0.01, 1)); add(ridge(0.52, 0.62, k => 0.14 * Math.pow(1 - k, 1.4) + 0.01, -1)); }
     add(ridge(0.6, 0.8, k => 0.09 * Math.pow(Math.sin(Math.PI * k), 0.6) + 0.01, -1));
     // 배지느러미
@@ -1327,7 +1747,7 @@ function fishFinsGeometry(sp, L) {
   }
   // 가슴지느러미
   const pec = finShape([[0, 0.014], [-0.14, 0.05], [-0.155, -0.014], [-0.1, -0.07]]);
-  for (const sgn of [1, -1]) add(pec, g => { const p = prof(0.26); g.scale(sp.flat ? 0.6 : 1, 1, 1); g.rotateZ(-0.35); g.rotateY(sgn * 0.75); g.translate(L * (0.5 - 0.26), -L * p.hh * (sp.flat ? -0.3 : 0.1), sgn * L * p.ww * 0.92); });
+  for (const sgn of [1, -1]) add(pec, g => { const p = prof(0.26); g.scale(sp.flat ? 0.6 : sp.longPec ? 1.9 : 1, sp.longPec ? 1.3 : 1, 1); g.rotateZ(-0.35); g.rotateY(sgn * 0.75); g.translate(L * (0.5 - 0.26), -L * p.hh * (sp.flat ? -0.3 : 0.1), sgn * L * p.ww * 0.92); });
   return mergeGeos(parts);
 }
 function buildFishMesh(sp, L) {
@@ -1347,6 +1767,10 @@ function buildFishMesh(sp, L) {
     const pu = new THREE.Mesh(new THREE.SphereGeometry(eyeR * 0.55, 8, 6), pupil);
     const dir = sp.flat ? new THREE.Vector3(0.3, 1, 0).normalize() : new THREE.Vector3(0.35, 0, Math.sign(ez)).normalize();
     pu.position.copy(e.position).add(dir.multiplyScalar(eyeR * 0.6)); g.add(pu);
+  }
+  if (sp.bill) { // 청새치의 긴 주둥이
+    const bill = new THREE.Mesh(new THREE.ConeGeometry(L * 0.016, L * 0.42, 8), new THREE.MeshStandardMaterial({ color: 0x3a4a60, roughness: 0.5, metalness: 0.2 }));
+    bill.rotation.z = -Math.PI / 2; bill.position.set(L * 0.5 + L * 0.19, L * 0.012, 0); g.add(bill);
   }
   g.userData.uni = uni;
   g.traverse(o => { if (o.isMesh) o.layers.set(1); });
@@ -2099,7 +2523,7 @@ function toast(t, ms = 1500) { ui.toast.textContent = t; ui.toast.classList.add(
 function updateScoreUI() {
   ui.score.textContent = S.score.toLocaleString();
   ui.best.textContent = '최고 ' + Math.max(S.best, S.score).toLocaleString();
-  ui.gear.textContent = `${selChar.emoji} ${selChar.name} · ${selRod.emoji} ${selRod.name}`;
+  ui.gear.textContent = `${selChar.name} · ${selRod.emoji} ${selRod.name}`;
   ui.count.textContent = `🐟 ${S.catches}마리`;
 }
 function updateTimerUI() {
@@ -2133,7 +2557,8 @@ function renderPickers() {
   const cp = $('charPicker'); cp.innerHTML = '';
   for (const c of CHARACTERS) {
     const b = document.createElement('button'); b.className = 'pick' + (c === selChar ? ' sel' : '');
-    b.innerHTML = `<div class="av">${c.emoji}</div><div class="nm">${c.name}</div><div class="tr">${c.desc}</div><div class="st">${c.trait}</div>`;
+    b.innerHTML = `<img class="pt" alt="${c.name}"><div class="nm">${c.name}</div><div class="tr">${c.desc}</div><div class="st">${c.trait}</div>`;
+    b.querySelector('img').src = drawPortrait(c, 'idle', 240).toDataURL();
     b.addEventListener('click', () => { selChar = c; lsSet(LS.char, c.id); setupPlayer(); renderPickers(); sfx.ensure(); sfx.tick(); });
     cp.appendChild(b);
   }
@@ -2268,9 +2693,9 @@ function spook(msg) {
 function hook() {
   const f = activeFish;
   const dist = distBow(bobber.position.x, bobber.position.z);
-  const strength = clamp(0.2 + 0.11 * Math.log2(1 + f.weight), 0.2, 0.8) * f.sp.fight;
+  const strength = Math.min(0.92, clamp(0.2 + 0.11 * Math.log2(1 + f.weight), 0.2, 0.8) * f.sp.fight);
   fight = {
-    fish: f, dist, startDist: dist, maxDist: Math.max(dist * 1.8, dist + 14),
+    fish: f, dist, startDist: dist, maxDist: Math.max(dist * 1.8, dist + 14 + Math.min(f.weight, 300) * 0.08),
     tension: 0.15, strength, stamina: 3 + f.weight * 0.12, runs: 0,
     running: false, runTimer: rand(0.6, 1.4), runDir: 0,
     angle: Math.atan2(bobber.position.x - BOW.x, -(bobber.position.z - BOW.z)),
@@ -2321,6 +2746,7 @@ function showCard(anim) {
   $('cLen').textContent = Math.round(f.lengthCm) + 'cm'; $('cWeight').textContent = fmtW(f.weight);
   $('cPts').textContent = `+${anim.pts.toLocaleString()}점`;
   $('cRecord').textContent = anim.newRecord ? '🏆 역대 최고 무게!' : (sp.tier === '전설' ? '✨ 전설의 물고기!' : '');
+  $('celebPortrait').src = drawPortrait(selChar, 'joy', 480).toDataURL();
   $('catchOverlay').classList.remove('hidden');
   if (sp.tier === '전설' || sp.tier === '영웅') sfx.legend(); else sfx.catch();
   if (sp.tier === '전설' || sp.tier === '영웅' || anim.newRecord) confetti(sp.tier === '전설' ? 90 : 50);
@@ -2673,7 +3099,7 @@ function updateFight(dt) {
   reel.omega = lerp(reel.omega, omegaNow, 1 - Math.exp(-dt * 10));
   const rate = clamp(reel.omega / (Math.PI * 2 * 1.3), 0, 1.35); // 초당 1.3바퀴 = 100%
   reel.rate = rate;
-  const lineK = 1 / selRod.line, reelK = selRod.reel * (selChar.reel || 1);
+  const lineK = 1 / (selRod.line * (selChar.line || 1)), reelK = selRod.reel * (selChar.reel || 1);
   if (rate > 0.05) {
     f.tension += (0.22 + pull * 0.95) * rate * lineK * dt;
     f.dist -= 2.5 * rate * reelK * (1 - pull * 0.55) * dt;
@@ -2692,7 +3118,7 @@ function updateFight(dt) {
     else if (rate > 0.1) { vibrate(Math.round(8 + f.tension * 22)); hapticTick = 0.14 / Math.min(1.35, Math.max(0.5, rate)); }
     else hapticTick = 0.05;
   }
-  if (f.running && f.tension > 0.25) f.stamina -= dt;
+  if (f.running && f.tension > 0.25) f.stamina -= dt * (selChar.tire || 1);
   f.tension = clamp(f.tension, 0, 1.2);
   if (f.tension >= 1) { loseFish('줄이 끊어졌다! 💥', true); return; }
   if (f.dist >= f.maxDist) { loseFish('너무 멀리 달아났다…', false); return; }
@@ -2704,7 +3130,7 @@ function updateFight(dt) {
   const dip = f.running ? 0.35 : 0.1;
   bobber.position.set(bx, waveH(bx, bz, S.t) - dip, bz);
   // 달아나는 중 가끔 수면 위로 점프
-  if (f.running && !f.jump && fish.weight < 80 && Math.random() < dt * 0.45) { f.jump = { t: 0, dur: 0.75 + Math.min(fish.L, 2) * 0.2 }; splashAt(bx, 0, bz, 1.4); sfx.splash(); }
+  if (f.running && !f.jump && (fish.weight < 80 || fish.sp.jumper) && Math.random() < dt * (fish.sp.jumper ? 0.9 : 0.45)) { f.jump = { t: 0, dur: 0.75 + Math.min(fish.L, 2) * 0.2 }; splashAt(bx, 0, bz, 1.4); sfx.splash(); }
   let jy = 0, jpitch = 0;
   if (f.jump) {
     f.jump.t += dt; const k = Math.min(1, f.jump.t / f.jump.dur);
@@ -2898,11 +3324,19 @@ function frame(now) {
   updateWorldTransform();
   if (S.running && !S.paused) { S.mmTimer = (S.mmTimer || 0) - dt; if (S.mmTimer <= 0) { S.mmTimer = 0.5; drawMinimap(); } }
   for (const c of clouds) { c.position.x += c.userData.drift * dt; if (c.position.x > 1000) c.position.x = -1000; }
+  S.gullCry = (S.gullCry || rand(4, 9)) - dt;
+  if (S.gullCry <= 0) { S.gullCry = rand(6, 16); if (skyMat.uniforms.uNight.value < 0.5) sfx.gull(); }
   for (const g of gulls) {
     const u = g.userData; u.a += u.sp * dt;
-    g.position.set(u.cx + Math.cos(u.a) * u.r, u.h + Math.sin(t * 0.7 + u.ph) * 1.5, u.cz + Math.sin(u.a) * u.r);
+    // 원을 그리며 활공과 날갯짓을 번갈아 함. 가끔 수면으로 급강하
+    u.glide = (u.glide + dt * 0.12) % 1;
+    const flapping = u.glide < 0.55;
+    if (u.dive <= 0 && Math.random() < dt * 0.02) u.dive = 3.5;
+    let dy = 0; if (u.dive > 0) { u.dive -= dt; const k = 1 - u.dive / 3.5; dy = -Math.sin(k * Math.PI) * (u.h - 1.5); }
+    g.position.set(u.cx + Math.cos(u.a) * u.r, u.h + Math.sin(t * 0.7 + u.ph) * 1.2 + dy, u.cz + Math.sin(u.a) * u.r);
     g.rotation.y = -u.a - (u.sp > 0 ? Math.PI / 2 : -Math.PI / 2);
-    const flap = Math.sin(t * 7 + u.ph) * 0.55; u.wl.rotation.x = flap; u.wr.rotation.x = -flap;
+    g.rotation.z = (u.sp > 0 ? -0.25 : 0.25); g.rotation.x = u.dive > 0 ? (u.dive > 1.75 ? -0.5 : 0.4) : 0;
+    const flap = flapping ? Math.sin(t * 9 + u.ph) * 0.6 : 0.12 + Math.sin(t * 1.5 + u.ph) * 0.05; u.wl.rotation.x = -flap; u.wr.rotation.x = flap;
   }
   for (let i = splashes.length - 1; i >= 0; i--) {
     const s = splashes[i]; s.userData.t += dt;
