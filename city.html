@@ -56,29 +56,34 @@
   /* ---------- map ---------- */
   #mapwrap { flex: 1 1 auto; position: relative; min-height: 0; background: #0e1820; }
   canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  #toasts { position: absolute; bottom: 44px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; align-items: center; z-index: 6; pointer-events: none; width: 92%; }
+  #toasts { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; align-items: center; z-index: 6; pointer-events: none; width: 92%; }
   .toast {
-    background: rgba(20,30,42,.92); color: #fff; padding: 8px 14px; border-radius: 999px; font-size: 13px;
-    box-shadow: 0 4px 14px rgba(0,0,0,.35); animation: pop .25s ease-out; pointer-events: auto; max-width: 100%; text-align: center;
+    background: rgba(20,30,42,.92); color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 12px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.35); animation: pop .25s ease-out; pointer-events: none; max-width: 100%; text-align: center;
   }
   .toast.warn { background: rgba(170,50,40,.95); }
   .toast.good { background: rgba(40,120,70,.95); }
   @keyframes pop { from { transform: translateY(-8px); opacity: 0; } to { transform: none; opacity: 1; } }
-  #paintLabel { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); background: rgba(20,30,42,.9); padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; pointer-events: none; display: none; z-index: 3; white-space: nowrap; }
+  #paintLabel { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); background: rgba(20,30,42,.9); padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; pointer-events: none; display: none; z-index: 3; white-space: nowrap; }
   #paintLabel.bad { color: var(--danger); }
   #hint { position: absolute; left: 8px; right: 8px; bottom: 8px; text-align: center; font-size: 11px; color: rgba(255,255,255,.75); text-shadow: 0 1px 2px #000; pointer-events: none; }
   #zoomBtns { position: absolute; right: 8px; bottom: 28px; display: flex; flex-direction: column; gap: 6px; z-index: 3; }
   #zoomBtns button { width: 34px; height: 34px; border-radius: 10px; background: rgba(20,30,42,.85); font-size: 20px; font-weight: 700; }
+  #confirm { position: absolute; left: 8px; right: 8px; bottom: 8px; display: flex; gap: 8px; align-items: center; background: rgba(27,40,56,.96); border-radius: 12px; padding: 8px 10px; z-index: 4; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+  #confirm.hidden { display: none; }
+  #confirm span { flex: 1; min-width: 0; }
+  #confirm small { color: #ffd18a; }
+  #confirm .btn[disabled] { opacity: .45; }
   #pausePill { position: absolute; left: 8px; top: 8px; background: rgba(20,30,42,.85); padding: 5px 10px; border-radius: 999px; font-size: 12px; display: none; z-index: 3; }
 
   /* quest card */
-  #quest { position: absolute; left: 8px; right: 54px; top: 8px; background: rgba(27,40,56,.94); border-radius: 12px; padding: 8px 10px; font-size: 12px; z-index: 3; box-shadow: 0 4px 14px rgba(0,0,0,.3); border-left: 3px solid var(--accent); }
-  #quest.min { right: auto; padding: 6px 10px; }
-  #quest.min .qbody { display: none; }
-  #quest .qh { display: flex; justify-content: space-between; align-items: center; font-weight: 800; }
-  #quest .qh span { color: var(--accent); }
-  #quest .qbody { margin-top: 4px; color: var(--muted); line-height: 1.45; }
-  #quest .qbody b { color: var(--ink); }
+  #quest { position: absolute; left: 8px; right: 54px; top: 8px; background: rgba(27,40,56,.92); border-radius: 12px; padding: 6px 10px; font-size: 12px; z-index: 3; box-shadow: 0 4px 14px rgba(0,0,0,.3); border-left: 3px solid var(--accent); }
+  #quest .qh { display: flex; align-items: center; gap: 6px; }
+  #quest .qh span { color: var(--accent); font-weight: 800; white-space: nowrap; }
+  #quest .qh b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+  #quest .qh button { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,.1); color: var(--muted); font-size: 12px; font-weight: 800; flex: 0 0 auto; }
+  #quest .qbody { display: none; margin-top: 5px; color: var(--muted); line-height: 1.45; }
+  #quest.open .qbody { display: block; }
   #quest .prog { display: flex; gap: 3px; margin-top: 6px; }
   #quest .prog i { flex: 1; height: 4px; border-radius: 2px; background: #0e151e; }
   #quest .prog i.d { background: var(--ok); }
@@ -155,13 +160,14 @@
     <canvas id="map"></canvas>
     <div id="pausePill">⏸ 일시정지</div>
     <div id="quest">
-      <div class="qh"><span id="qTitle">목표</span><button id="qToggle" style="font-size:12px;color:var(--muted)">접기 ▲</button></div>
-      <div class="qbody"><b id="qText"></b><div id="qHint"></div><div class="prog" id="qProg"></div></div>
+      <div class="qh"><span id="qTitle">목표</span><b id="qText"></b><button id="qToggle" title="자세히">?</button></div>
+      <div class="qbody"><div id="qHint"></div><div class="prog" id="qProg"></div></div>
     </div>
     <div id="toasts"></div>
     <div id="paintLabel"></div>
     <div id="zoomBtns"><button id="rotBtn" title="시점 회전">↻</button><button id="zin">+</button><button id="zout">−</button></div>
     <div id="hint"></div>
+    <div id="confirm" class="hidden"><span id="cText"></span><button class="btn" id="cNo">✕ 취소</button><button class="btn primary" id="cOk">✓ 짓기</button></div>
     <div id="info" class="sheet hidden"></div>
   </div>
 
@@ -173,7 +179,7 @@
 (() => {
 'use strict';
 const W = 40, H = 40, T = 32, N = W * H;
-const ZMIN = 0.3, ZMAX = 2.5;
+const ZMIN = 0.25, ZMAX = 2.5;
 const SAVE_KEY = 'city-save-v1';
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -198,8 +204,8 @@ const ZONE = {
 };
 const BLD = {
   park:     { name: '공원',   size: 1, upkeep: 3,  radius: 4,  ic: '🌳', power: 0 },
-  power:    { name: '발전소', size: 2, upkeep: 60, supply: 200, ic: '⚡', power: 0 },
-  water:    { name: '급수탑', size: 1, upkeep: 15, radius: 8,  ic: '💧', power: 2 },
+  power:    { name: '발전소', size: 2, upkeep: 40, supply: 300, ic: '⚡', power: 0 },
+  water:    { name: '급수탑', size: 1, upkeep: 10, radius: 8,  ic: '💧', power: 2 },
   police:   { name: '경찰서', size: 1, upkeep: 30, radius: 9,  ic: '🚓', power: 3 },
   fire:     { name: '소방서', size: 1, upkeep: 30, radius: 9,  ic: '🚒', power: 3 },
   school:   { name: '학교',   size: 2, upkeep: 45, radius: 11, ic: '🏫', power: 4 },
@@ -214,7 +220,7 @@ const TOOLS = [
   { id: 'C', ic: '🏬', name: '상업', cost: 60, drag: 'rect', hint: '끌어서 구역 지정 · 주민이 가까이 살아야 장사가 돼요' },
   { id: 'I', ic: '🏭', name: '공업', cost: 60, drag: 'rect', hint: '끌어서 구역 지정 · 공해가 나니 집에서 떨어뜨리세요' },
   { sep: true },
-  { id: 'power', ic: '⚡', name: '발전소', cost: 2500, hint: '탭해서 짓기 (2×2) · 전기는 도로·건물을 따라 흘러요 · 공급 200' },
+  { id: 'power', ic: '⚡', name: '발전소', cost: 2500, hint: '탭해서 짓기 (2×2) · 전기는 도로·건물을 따라 흘러요 · 공급 300' },
   { id: 'water', ic: '💧', name: '급수탑', cost: 600, hint: '탭해서 짓기 · 반경 8칸에 물 공급 · 전기 필요' },
   { id: 'park', ic: '🌳', name: '공원', cost: 120, drag: 'rect', hint: '끌어서 만들기 · 땅값↑ 공해↓ 주민 행복↑' },
   { id: 'police', ic: '🚓', name: '경찰서', cost: 900, hint: '탭해서 짓기 · 반경 9칸 치안 · 도로와 전기 필요' },
@@ -229,7 +235,7 @@ const TOOL = {}; TOOLS.forEach(t => { if (t.id) TOOL[t.id] = t; });
 const MILESTONES = [[100, '마을', 1000], [500, '큰 마을', 2000], [1500, '소도시', 4000], [4000, '도시', 8000], [10000, '대도시', 15000], [25000, '메트로폴리스', 30000]];
 const QUEST = [
   { t: '도로를 5칸 이상 놓으세요', h: '🛣️ 도로 도구를 고르고 화면을 끌어 길을 그려요. 건물은 도로에서 2칸 안에 있어야 해요.', ok: s => s.roads >= 5 },
-  { t: '발전소를 지으세요', h: '⚡ 전기는 도로와 건물을 따라 흐릅니다. 발전소를 도로에 붙이되, 공해가 나니 집에서는 떨어뜨리세요.', ok: s => s.cnt.power >= 1 },
+  { t: '발전소를 지으세요', h: '⚡ 전기는 도로를 따라 흐르고 도로에서 2칸 안의 건물에 들어갑니다. 발전소를 도로에 붙이되, 공해가 나니 집에서는 떨어뜨리세요.', ok: s => s.cnt.power >= 1 },
   { t: '급수탑을 지으세요', h: '💧 급수탑은 반경 8칸에 물을 공급해요. 전기가 닿아야 작동합니다.', ok: s => s.cnt.water >= 1 },
   { t: '주거지역을 6칸 이상 지정하세요', h: '🏠 도로 옆 빈 땅을 끌어서 주거지역으로 지정하면 집이 들어서요.', ok: s => s.zone.R >= 6 },
   { t: '상업·공업지역을 각각 3칸 이상 지정하세요', h: '🏬 상업과 🏭 공업은 일자리를 만들어요. 공장은 공해를 내니 집에서 떨어뜨리세요.', ok: s => s.zone.C >= 3 && s.zone.I >= 3 },
@@ -239,7 +245,7 @@ const QUEST = [
 // ---------- state ----------
 let tiles, money, month, tax, speed = 1, cam, questStep, milestoneIdx, bailouts, soundOn = true, seed;
 let lastIncome = 0, lastExpense = 0, happiness = 70;
-let curTool = TOOL.hand, hover = null, paint = null, gest = null, dirty = true, acc = 0;
+let curTool = TOOL.hand, hover = null, paint = null, gest = null, dirty = true, acc = 0, pending = null, hits = [], xray = 0;
 const ptr = new Map();
 const cov = {}; ['police', 'fire', 'school', 'hospital', 'park', 'pol', 'lv', 'crime', 'popc', 'abs'].forEach(k => cov[k] = new Float32Array(N));
 const stats = { pop: 0, cJobs: 0, iJobs: 0, dem: { R: 0, C: 0, I: 0 }, roads: 0, cnt: {}, zone: { R: 0, C: 0, I: 0 }, powerUse: 0, powerSupply: 0, unemp: 0, waterPct: 0, items: [], covPct: {} };
@@ -328,9 +334,8 @@ function newGame() {
   const start = genMap(seed);
   money = 15000; month = 0; tax = 9; speed = 1; questStep = 0; milestoneIdx = 0; bailouts = 0;
   lastIncome = 0; lastExpense = 0; happiness = 70; acc = 0;
-  rot = 0; cam = { x: 0, y: 0, z: clamp(Math.min(cw, 480) / (TW * 7.5), 0.5, 1.2) }; centerOn(start.tx, start.ty);
-  setTool('hand'); hideInfo(); dirty = true; simStatic(); computeStats(); updateHUD(); renderQuest();
-  $('quest').classList.remove('min');
+  rot = 0; cam = { x: 0, y: 0, z: clamp(Math.min(cw, 480) / (TW * 9.5), 0.45, 1.0) }; centerOn(start.tx, start.ty);
+  setTool('hand'); hideInfo(); dirty = true; simStatic(); computeStats(); updateHUD(); qShownStep = -1; renderQuest();
   toast('🏙️ 새 도시에 오신 것을 환영해요, 시장님!', 'good');
 }
 
@@ -353,8 +358,7 @@ function load() {
     speed = d.speed || 1; rot = d.rot || 0;
     if (d.v === 2 && d.cam) { cam = d.cam; cam.z = clamp(cam.z, ZMIN, ZMAX); }
     else { cam = { x: 0, y: 0, z: d.cam ? clamp(d.cam.z * 0.6, ZMIN, ZMAX) : 0.8 }; centerOn(d.cam ? clamp(d.cam.x / T, 0, W - 1) : W / 2, d.cam ? clamp(d.cam.y / T, 0, H - 1) : H / 2); }
-    setTool('hand'); hideInfo(); dirty = true; simStatic(); computeStats(); updateHUD(); renderQuest();
-    if (questStep >= QUEST.length) $('quest').style.display = 'none';
+    setTool('hand'); hideInfo(); dirty = true; simStatic(); computeStats(); updateHUD(); qShownStep = -1; renderQuest();
     return true;
   } catch (e) { return false; }
 }
@@ -510,6 +514,24 @@ function simStatic() {
       const ax = key % W, ay = (key / W) | 0;
       for (let dy = 0; dy < sz; dy++) for (let dx = 0; dx < sz; dx++) tiles[idx(ax + dx, ay + dy)].pw = true;
     }
+    c.pool = pool;
+  }
+  // anything within 2 tiles of a powered road is hooked up to that road's network (no need to touch it)
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = idx(x, y), t = tiles[i];
+    if (t.pw) continue;
+    let need, sz = 1;
+    if (isZone(t.k)) need = ZONE_POWER[t.l];
+    else if (BLD[t.k] && t.ax === x && t.ay === y) { need = BLD[t.k].power; sz = BLD[t.k].size; }
+    else continue;
+    let ci = -1;
+    for (let dy = -2; dy <= sz + 1 && ci < 0; dy++) for (let dx = -2; dx <= sz + 1; dx++) {
+      const nx = x + dx, ny = y + dy; if (!inb(nx, ny)) continue;
+      const j = idx(nx, ny); if (tiles[j].k === 'road' && tiles[j].pw) { ci = comp[j]; break; }
+    }
+    if (ci < 0 || need > comps[ci].pool) continue;
+    comps[ci].pool -= need; powerUse += need;
+    for (let dy = 0; dy < sz; dy++) for (let dx = 0; dx < sz; dx++) tiles[idx(x + dx, y + dy)].pw = true;
   }
   stats.powerUse = powerUse; stats.powerSupply = powerSupply;
   // water
@@ -530,7 +552,7 @@ function simStatic() {
     if (t.k === 'R' && t.l > 0) { pop += ZONE.R.pop[t.l]; addCov(cov.popc, x + 0.5, y + 0.5, 6, ZONE.R.pop[t.l] / 60); }
     if (BLD[t.k] && t.ax === x && t.ay === y) {
       const b = BLD[t.k], c = b.size / 2;
-      if (t.k === 'power') addCov(cov.pol, x + c, y + c, 6, 0.85);
+      if (t.k === 'power') addCov(cov.pol, x + c, y + c, 5.5, 0.75);
       else if (t.k === 'park') addCov(cov.park, x + c, y + c, b.radius, 1, true);
       else if (b.radius && t.k !== 'water' && bldActive(x, y)) addCov(cov[t.k], x + c, y + c, b.radius, 1, true);
     }
@@ -541,9 +563,10 @@ function simStatic() {
     cov.pol[i] = clamp(cov.pol[i] - cov.abs[i] - cov.park[i] * 0.3, 0, 1);
     let water = 0;
     for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (inb(x + dx, y + dy) && tiles[idx(x + dx, y + dy)].g === 1) water = 1;
-    cov.lv[i] = clamp(0.5 + 0.35 * cov.park[i] + 0.12 * cov.school[i] + 0.12 * cov.hospital[i] + 0.1 * cov.police[i] + 0.12 * water - 0.7 * cov.pol[i], 0, 1);
+    cov.lv[i] = clamp(0.55 + 0.35 * cov.park[i] + 0.12 * cov.school[i] + 0.12 * cov.hospital[i] + 0.1 * cov.police[i] + 0.12 * water - 0.7 * cov.pol[i], 0, 1);
     cov.crime[i] = clamp(crimeBase * (1 - cov.police[i] * 0.9), 0, 1);
   }
+  for (let i = 0; i < N; i++) if (isZone(tiles[i].k)) tiles[i].d = desirability(tiles[i], i);
   dirty = false;
 }
 function desirability(t, i) {
@@ -578,7 +601,7 @@ function computeStats() {
   for (const k in cnt) if (BLD[k].upkeep) items.push([BLD[k].ic + ' ' + BLD[k].name + ' ' + cnt[k], cnt[k] * BLD[k].upkeep]);
   stats.items = items;
   stats.expense = Math.round(items.reduce((a, b) => a + b[1], 0));
-  stats.income = Math.round((pop * 2.2 + cJobs * 3.5 + iJobs * 2.5) * tax / 100);
+  stats.income = Math.round((pop * 1.8 + cJobs * 3 + iJobs * 2.2) * tax / 100);
   // coverage of residents
   const cp = { police: 0, fire: 0, school: 0, hospital: 0, park: 0 }; let sumLv = 0, sumCr = 0, sumPol = 0, sumHos = 0, unpow = 0, wp = 0;
   for (let i = 0; i < N; i++) {
@@ -611,7 +634,7 @@ function tick() {
     if (t.l < 3) {
       const need = [0.2, 0.45, 0.6][t.l];
       const eduOk = t.l < 2 || t.k === 'R' || cov.school[i] > 0.25;
-      if (dem > 0 && des >= need && eduOk && Math.random() < (0.1 + 0.45 * des * Math.min(dem, 1)) * (t.l === 0 ? 1 : 0.4)) t.l++;
+      if (dem > 0 && des >= need && eduOk && Math.random() < (0.15 + 0.6 * des * Math.min(dem, 1)) * (t.l === 0 ? 1 : 0.4)) t.l++;
     }
     if (t.l > 0) {
       if (dem < -0.25 && Math.random() < 0.12 * -dem) t.l--;
@@ -664,11 +687,12 @@ function simFire() {
       } else if (t.g === 2) t.g = 0;
     }
   }
-  // new fires
+  // new fires (none in the first three years, so a new town can find its feet)
+  if (month < 36) return;
   for (let i = 0; i < N; i++) {
     const t = tiles[i];
     if (t.fire || !flammable(t) || t.g === 2 && t.k === '') continue;
-    const p = (t.k === 'I' ? 0.0012 : BLD[t.k] ? 0.0004 : 0.0005) * (1 - 0.85 * cov.fire[i]);
+    const p = (t.k === 'I' ? 0.0007 : BLD[t.k] ? 0.0002 : 0.0003) * (1 - 0.85 * cov.fire[i]);
     if (Math.random() < p) {
       t.fire = 1;
       if (month - fireToastAt > 3) {
@@ -692,10 +716,13 @@ function checkQuest() {
     renderQuest(); updateHUD();
   }
 }
+let qTimer = 0, qShownStep = -1;
+function setQuestOpen(open) { const q = $('quest'); q.classList.toggle('open', open); $('qToggle').textContent = open ? '▲' : '?'; clearTimeout(qTimer); }
 function renderQuest() {
   const q = $('quest');
   if (questStep >= QUEST.length) { q.style.display = 'none'; return; }
   q.style.display = '';
+  if (qShownStep !== questStep) { qShownStep = questStep; setQuestOpen(true); qTimer = setTimeout(() => setQuestOpen(false), 9000); }
   $('qTitle').textContent = `목표 ${questStep + 1}/${QUEST.length}`;
   $('qText').textContent = QUEST[questStep].t;
   $('qHint').textContent = QUEST[questStep].h;
@@ -731,12 +758,13 @@ function setSpeed(s) { speed = s; updateHUD(); }
 
 // ---------- toasts ----------
 function toast(msg, cls = '', dur = 2600, onTap) {
-  const box = $('toasts');
+  const box = $('toasts'), q = $('quest');
+  box.style.top = (q.style.display === 'none' ? 8 : q.offsetHeight + 14) + 'px';
   for (const o of box.children) if (o.textContent === msg) o.remove(); // no duplicate stacking
   const el = document.createElement('div');
   el.className = 'toast ' + cls; el.textContent = msg; box.appendChild(el);
-  if (onTap) el.addEventListener('pointerdown', e => { e.stopPropagation(); onTap(); el.remove(); });
-  while (box.children.length > 3) box.firstChild.remove();
+  if (onTap) { el.style.pointerEvents = 'auto'; el.addEventListener('pointerdown', e => { e.stopPropagation(); onTap(); el.remove(); }); }
+  while (box.children.length > 2) box.firstChild.remove();
   setTimeout(() => { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, dur);
 }
 
@@ -752,7 +780,7 @@ function buildToolbar() {
   }
 }
 function setTool(id) {
-  curTool = TOOL[id]; paint = null; hidePaintLabel();
+  curTool = TOOL[id]; paint = null; clearPending(); hidePaintLabel();
   document.querySelectorAll('.tool').forEach(b => b.classList.toggle('on', b.dataset.id === id));
   $('hint').textContent = curTool.hint;
   if (id !== 'hand') hideInfo();
@@ -779,8 +807,9 @@ function showInfo(x, y) {
     rows.push(`<div class="row"><span>${t.k === 'R' ? '주민' : '일자리'} <b>${t.k === 'R' ? z.pop[t.l] : z.jobs[t.l]}</b></span><span>단계 <b>${t.l}/3</b></span><span>매력도 <b>${pct(t.d || desirability(t, i))}</b></span><span>수요 <b>${stats.dem[t.k] > 0 ? '+' : ''}${Math.round(stats.dem[t.k] * 100)}</b></span></div>`);
     rows.push(util);
     if (!t.rd) rows.push('<div class="row bad">도로에서 2칸 안에 있어야 해요</div>');
-    else if (!t.pw) rows.push('<div class="row bad">전기가 안 들어와요 — 발전소와 도로·건물로 이어져 있나요?</div>');
+    else if (!t.pw) rows.push('<div class="row bad">전기가 안 들어와요 — 발전소와 이어진 도로에서 2칸 안에 있어야 해요 (전력 부족일 수도)</div>');
     else if (!t.wt) rows.push('<div class="row bad">물이 안 나와요 — 급수탑(반경 8칸)이 필요해요</div>');
+    else if ((t.d || 0) < 0.2) rows.push('<div class="row bad">매력도가 너무 낮아 아무도 안 와요 — ' + (cov.pol[i] > 0.25 ? '공장·발전소 공해가 심해요. 멀리 떨어뜨리거나 🌳 공원·나무를 심으세요' : '치안이 나빠요. 🚓 경찰서를 지으세요') + '</div>');
     else if (stats.dem[t.k] <= 0) rows.push('<div class="row bad">수요가 없어요 — ' + (t.k === 'R' ? '일자리(상업·공업)를 늘리세요' : '주민이 더 필요해요') + '</div>');
     else if (t.l === 2 && t.k !== 'R' && cov.school[i] <= 0.25) rows.push('<div class="row">3단계로 크려면 🏫 학교 범위가 필요해요</div>');
     rows.push(env);
@@ -871,8 +900,8 @@ function showHelp() {
   🛣️🏠🏬🏭🌳🌲🚜: 끌어서 선·사각형으로 그리기. 이때는 <b>두 손가락</b>으로 화면을 옮겨요.<br>
   ⚡💧🚓🚒🏫🏥: 탭한 칸에 짓기 (2×2 건물은 탭한 칸이 한쪽 모서리). 끌면 화면 이동.</p>
   <h4>도시가 자라는 조건</h4>
-  <p>구역(주거·상업·공업)은 ① <b>도로에서 2칸 안</b> ② <b>전기</b> ③ <b>수도</b>가 모두 있고, 그 종류의 <b>수요</b>가 플러스일 때 건물이 들어서고 1→2→3단계로 커져요. 조건이 빠지면 칸 위에 ⚡💧🛣️ 표시가 뜨고 건물이 줄어들어요.</p>
-  <p>⚡ 전기는 발전소에서 <b>서로 붙어 있는 도로·건물</b>을 타고 흐르고, 발전소 하나가 200만큼 공급해요(집 1단계 1, 2단계 2, 3단계 4). 💧 급수탑은 반경 8칸에 물을 줘요.</p>
+  <p>구역(주거·상업·공업)은 ① <b>도로에서 2칸 안</b> ② <b>전기</b> ③ <b>수도</b>가 모두 있고, 그 종류의 <b>수요</b>가 플러스일 때 건물이 들어서고 1→2→3단계로 커져요. 조건이 빠지면 칸 위에 ⚡💧🛣️ 표시가 뜨고 건물이 줄어들어요. 빈 터에 🏭는 공해가 심해서, 😕는 치안이 나빠서, 📉는 수요가 없어서 아무도 안 오는 거예요.</p>
+  <p>⚡ 전기는 발전소에서 <b>붙어 있는 도로·건물</b>을 타고 흐르고, 전기가 통하는 도로에서 <b>2칸 안</b>의 건물에도 들어가요. 발전소 하나가 300만큼 공급해요(집 1단계 1, 2단계 2, 3단계 4). 💧 급수탑은 반경 8칸에 물을 줘요.</p>
   <p>📈 <b>수요</b>: 일자리가 주민보다 많으면 주거 수요↑, 주민이 많으면 상업·공업 수요↑. 세율이 높으면 수요가 떨어져요.</p>
   <p>🏭 공업과 발전소는 <b>공해</b>를 내 주변 땅값을 떨어뜨리고, 🌳 공원·🌲 나무·🏫 학교·🏥 병원·🚓 경찰서·물가는 땅값을 올려요. 땅값이 높을수록 집이 크게 자라요. 상업·공업이 3단계가 되려면 🏫 학교 범위가 필요해요.</p>
   <p>🔥 <b>화재</b>는 가끔 일어나고 옆 칸으로 번져요. 🚒 소방서 범위 안이면 빨리 꺼지고, 밖이면 건물이 잔해가 돼요. 공장은 불이 더 잘 나요.</p>
@@ -925,15 +954,43 @@ function updatePaint() {
   let n = 0, cost = 0;
   const marks = list.map(([x, y]) => { const ok = canPlace(curTool, x, y); if (ok) { n++; cost += costOf(curTool, x, y); } return [x, y, ok]; });
   paint = { marks, n, cost };
-  const lb = $('paintLabel'); lb.style.display = 'block';
+  const lb = $('paintLabel'); lb.style.display = 'block'; $('hint').style.display = 'none';
   lb.textContent = `${curTool.ic} ${curTool.name} ${n}칸 · ₩${fmt(cost)}`; lb.classList.toggle('bad', cost > money);
 }
-function hidePaintLabel() { $('paintLabel').style.display = 'none'; }
-function onTap(t, e) {
+function hidePaintLabel() { $('paintLabel').style.display = 'none'; $('hint').style.display = pending ? 'none' : ''; }
+// tap-to-place buildings: first tap shows a ghost + confirm bar, second tap on it (or ✓) builds
+function fitAnchor(tool, x, y) { // keep the tapped tile inside the footprint, slide the anchor to a spot that fits
+  const sz = BLD[tool.id] ? BLD[tool.id].size : 1; if (sz === 1) return [x, y];
+  for (const [dx, dy] of [[0, 0], [-1, 0], [0, -1], [-1, -1]]) if (canPlace(tool, x + dx, y + dy)) return [x + dx, y + dy];
+  return [x, y];
+}
+function inPending(x, y) { if (!pending) return false; const sz = BLD[curTool.id] ? BLD[curTool.id].size : 1; return x >= pending.x && y >= pending.y && x < pending.x + sz && y < pending.y + sz; }
+function setPending(x, y) { pending = { x, y }; updateConfirm(); }
+function clearPending() { pending = null; $('confirm').classList.add('hidden'); $('hint').style.display = ''; }
+function updateConfirm() {
+  if (!pending) return;
+  const ok = canPlace(curTool, pending.x, pending.y), poor = money < curTool.cost;
+  $('confirm').classList.remove('hidden'); $('hint').style.display = 'none';
+  $('cText').innerHTML = `${curTool.ic} ${curTool.name} <small>₩${fmt(curTool.cost)}</small> ` + (!ok ? `<span class="bad">${placeFailReason(curTool, [pending.x, pending.y])}</span>` : poor ? '<span class="bad">돈이 부족해요</span>' : '<span style="color:var(--muted)">다른 칸을 탭하면 옮겨요</span>');
+  $('cOk').disabled = !ok || poor;
+}
+function confirmPending() { if (!pending) return; const { x, y } = pending; if (applyTiles(curTool, [[x, y]])) clearPending(); else updateConfirm(); }
+function inPoly(p, x, y) { let c = false; for (let i = 0, j = p.length - 1; i < p.length; j = i++) if ((p[i].y > y) !== (p[j].y > y) && x < (p[j].x - p[i].x) * (y - p[i].y) / (p[j].y - p[i].y) + p[i].x) c = !c; return c; }
+function pickAt(sx, sy) { // front-most building silhouette under the finger, else the ground tile
+  const x = sx - cvRect.left, y = sy - cvRect.top;
+  for (let i = hits.length - 1; i >= 0; i--) if (inPoly(hits[i].pts, x, y)) return { x: hits[i].mx, y: hits[i].my };
+  return tileAt(sx, sy);
+}
+function onTap(g) {
+  const t = (curTool.id === 'hand' || curTool.id === 'bull') ? pickAt(g.x0, g.y0) : g.t0;
   if (!inb(t.x, t.y)) return;
   if (curTool.id === 'hand') { showInfo(t.x, t.y); SFX.tap(); return; }
-  applyTiles(curTool, [[t.x, t.y]]);
+  if (curTool.drag) { applyTiles(curTool, [[t.x, t.y]]); return; }
+  if (inPending(t.x, t.y)) { confirmPending(); return; }
+  const [ax, ay] = fitAnchor(curTool, t.x, t.y); setPending(ax, ay); SFX.tap();
 }
+$('cOk').addEventListener('click', confirmPending);
+$('cNo').addEventListener('click', clearPending);
 cv.addEventListener('pointerdown', e => {
   e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch (err) {}
   ptr.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -970,7 +1027,7 @@ cv.addEventListener('pointermove', e => {
 });
 function pointerEnd(e) {
   const was = gest; ptr.delete(e.pointerId);
-  if (was && was.mode === 'down' && e.pointerId === was.id && e.type !== 'pointercancel') onTap(was.t0, e);
+  if (was && was.mode === 'down' && e.pointerId === was.id && e.type !== 'pointercancel') onTap(was);
   else if (was && was.mode === 'paint') { if (paint && paint.n) applyTiles(curTool, paint.marks.filter(m => m[2])); else if (paint) { toast(placeFailReason(curTool, paint.marks[0]), 'warn'); SFX.error(); } }
   paint = null; hidePaintLabel();
   if (ptr.size === 1) { const [p] = ptr.values(); gest = { mode: 'pan', lx: p.x, ly: p.y }; }
@@ -988,14 +1045,15 @@ $('btnPause').addEventListener('click', () => { setSpeed(speed === 0 ? 1 : 0); S
 $('spd').addEventListener('click', () => { setSpeed(speed === 0 ? 1 : speed % 3 + 1); SFX.tap(); });
 $('btnStats').addEventListener('click', () => { showStats(); SFX.tap(); });
 $('btnMenu').addEventListener('click', () => { showMenu(); SFX.tap(); });
-$('qToggle').addEventListener('click', () => { const q = $('quest'); q.classList.toggle('min'); $('qToggle').textContent = q.classList.contains('min') ? '펼치기 ▼' : '접기 ▲'; });
+$('qToggle').addEventListener('click', () => setQuestOpen(!$('quest').classList.contains('open')));
 $('modal').addEventListener('pointerdown', e => { if (e.target === $('modal')) closeModal(); });
 window.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;
   const keys = { '1': 'hand', '2': 'road', '3': 'R', '4': 'C', '5': 'I', '6': 'power', '7': 'water', '8': 'park', '9': 'police', '0': 'fire' };
   if (keys[e.key]) setTool(keys[e.key]);
-  else if (e.key === 'Escape') { closeModal(); hideInfo(); setTool('hand'); }
+  else if (e.key === 'Escape') { if (pending) clearPending(); else { closeModal(); hideInfo(); setTool('hand'); } }
   else if (e.key === ' ') { e.preventDefault(); setSpeed(speed === 0 ? 1 : 0); }
+  else if (e.key === 'Enter' && pending) confirmPending();
   else if (e.key === '+' || e.key === '=') zoomAt(cvRect.left + cw / 2, cvRect.top + ch / 2, cam.z * 1.25);
   else if (e.key === '-') zoomAt(cvRect.left + cw / 2, cvRect.top + ch / 2, cam.z / 1.25);
   else if (e.key === 'b' || e.key === 'B') setTool('bull');
@@ -1034,6 +1092,7 @@ function box(fx, fy, fw, fh, h, color, zb = 0, o = {}) {
   poly([w1, s1, s0, w0], col(color, 0.68), 'rgba(0,0,0,.2)');
   poly([s1, e1, e0, s0], col(color, 0.9), 'rgba(0,0,0,.2)');
   poly([n1, e1, s1, w1], o.top || col(color, 1.12), 'rgba(0,0,0,.12)');
+  if (o.hit) hits.push({ pts: [P(fx, fy, zb + h), e1, e0, s0, w0, w1], mx: o.hit[0], my: o.hit[1] });
   if (o.win && hz * h / o.win[1] >= 5) { const hp = s0.y - s1.y; winFace(w1, s1, hp, o.win[0], o.win[1], o.seed || 0, 0, o.lit); winFace(s1, e1, hp, o.win[0], o.win[1], o.seed || 0, 1, o.lit); }
   return { n1, e1, s1, w1, s0, e0, w0 };
 }
@@ -1154,66 +1213,66 @@ function drawTrees(vx, vy, mx, my, park) {
   for (const [u, v, s, sd, pine] of list) tree(vx + u, vy + v, s, sd, pine);
 }
 function drawZoneBld(vx, vy, mx, my, t) {
-  const v = hsh(mx, my, 1), seed = mx * 131 + my;
+  const v = hsh(mx, my, 1), seed = mx * 131 + my, hit = [mx, my];
   if (t.k === 'R') {
     const c = HOUSE_COLORS[v % HOUSE_COLORS.length], rc = ROOF_COLORS[(v >>> 3) % ROOF_COLORS.length];
-    if (t.l === 1) { box(vx + 0.22, vy + 0.22, 0.56, 0.56, 0.42, c, 0, { win: [1, 1], seed, lit: t.pw }); gable(vx + 0.17, vy + 0.17, 0.66, 0.66, 0.42, 0.32, rc); }
-    else if (t.l === 2) { box(vx + 0.12, vy + 0.12, 0.76, 0.76, 0.9, c, 0, { win: [2, 2], seed, lit: t.pw }); gable(vx + 0.08, vy + 0.08, 0.84, 0.84, 0.9, 0.3, rc); }
-    else { const h = 2 + 0.6 * h01(mx, my, 5), cc = ['#c8ccd4', '#d9c7b5', '#b8c4d6', '#e0d6c8'][v % 4]; box(vx + 0.1, vy + 0.1, 0.8, 0.8, h, cc, 0, { win: [3, Math.round(h * 2.5)], seed, lit: t.pw }); box(vx + 0.3, vy + 0.3, 0.3, 0.3, 0.2, '#8e98a6', h, { shadow: false }); }
+    if (t.l === 1) { box(vx + 0.22, vy + 0.22, 0.56, 0.56, 0.4, c, 0, { win: [1, 1], seed, lit: t.pw, hit }); gable(vx + 0.17, vy + 0.17, 0.66, 0.66, 0.4, 0.3, rc); }
+    else if (t.l === 2) { box(vx + 0.12, vy + 0.12, 0.76, 0.76, 0.7, c, 0, { win: [2, 2], seed, lit: t.pw, hit }); gable(vx + 0.08, vy + 0.08, 0.84, 0.84, 0.7, 0.28, rc); }
+    else { const h = 1.3 + 0.5 * h01(mx, my, 5), cc = ['#c8ccd4', '#d9c7b5', '#b8c4d6', '#e0d6c8'][v % 4]; box(vx + 0.1, vy + 0.1, 0.8, 0.8, h, cc, 0, { win: [3, Math.round(h * 2.5)], seed, lit: t.pw, hit }); box(vx + 0.3, vy + 0.3, 0.3, 0.3, 0.15, '#8e98a6', h, { shadow: false }); }
   } else if (t.k === 'C') {
-    if (t.l === 1) { const b = box(vx + 0.12, vy + 0.12, 0.76, 0.76, 0.55, '#f1ece2', 0, { win: [2, 1], seed }); const ac = ['#e74c3c', '#2e86de', '#27ae60', '#f39c12'][v % 4], hp = b.s0.y - b.s1.y; band(b.w1, b.s1, hp, 0.08, 0.3, col(ac, 0.8)); band(b.s1, b.e1, hp, 0.08, 0.3, ac); }
-    else if (t.l === 2) box(vx + 0.1, vy + 0.1, 0.8, 0.8, 1.3, '#7fa7d9', 0, { win: [3, 3], seed, lit: t.pw });
+    if (t.l === 1) { const b = box(vx + 0.12, vy + 0.12, 0.76, 0.76, 0.5, '#f1ece2', 0, { win: [2, 1], seed, hit }); const ac = ['#e74c3c', '#2e86de', '#27ae60', '#f39c12'][v % 4], hp = b.s0.y - b.s1.y; band(b.w1, b.s1, hp, 0.08, 0.3, col(ac, 0.8)); band(b.s1, b.e1, hp, 0.08, 0.3, ac); }
+    else if (t.l === 2) box(vx + 0.1, vy + 0.1, 0.8, 0.8, 1.0, '#7fa7d9', 0, { win: [3, 3], seed, lit: t.pw, hit });
     else {
-      const h = 2.8 + 0.8 * h01(mx, my, 5), b = box(vx + 0.12, vy + 0.12, 0.76, 0.76, h, '#5f93d6', 0, { win: [3, Math.round(h * 2.2)], seed, lit: t.pw, top: '#9ec0ee' });
-      const tc = P(vx + 0.5, vy + 0.5, h); cx.strokeStyle = '#dfe9f5'; cx.beginPath(); cx.moveTo(tc.x, tc.y); cx.lineTo(tc.x, tc.y - hz * 0.4); cx.stroke();
+      const h = 1.7 + 0.6 * h01(mx, my, 5), b = box(vx + 0.12, vy + 0.12, 0.76, 0.76, h, '#5f93d6', 0, { win: [3, Math.round(h * 2.2)], seed, lit: t.pw, top: '#9ec0ee', hit });
+      const tc = P(vx + 0.5, vy + 0.5, h); cx.strokeStyle = '#dfe9f5'; cx.beginPath(); cx.moveTo(tc.x, tc.y); cx.lineTo(tc.x, tc.y - hz * 0.3); cx.stroke();
     }
   } else {
-    if (t.l === 1) box(vx + 0.1, vy + 0.15, 0.8, 0.7, 0.5, '#9aa3a8', 0, { seed });
+    if (t.l === 1) box(vx + 0.1, vy + 0.15, 0.8, 0.7, 0.45, '#9aa3a8', 0, { seed, hit });
     else {
-      const n = t.l === 2 ? 2 : 3, h = t.l === 2 ? 0.9 : 1.2, fx = vx + 0.06, fy = vy + 0.08, fw = 0.88, fh = 0.84;
-      box(fx, fy, fw, fh, h, '#8d969c', 0, { win: [3, 1], seed });
+      const n = t.l === 2 ? 2 : 3, h = t.l === 2 ? 0.7 : 0.9, fx = vx + 0.06, fy = vy + 0.08, fw = 0.88, fh = 0.84;
+      box(fx, fy, fw, fh, h, '#8d969c', 0, { win: [3, 1], seed, hit });
       for (let i = 0; i < n; i++) gable(fx, fy + fh * i / n, fw, fh / n, h, 0.2, '#9fb4c2');
-      chimney(fx + fw - 0.22, fy + 0.06, h, 0.9, 0.12, mx, my, t.pw);
-      if (t.l === 3) chimney(fx + fw - 0.45, fy + 0.06, h, 0.7, 0.12, mx + 3, my, t.pw);
+      chimney(fx + fw - 0.22, fy + 0.06, h, 0.6, 0.12, mx, my, t.pw);
+      if (t.l === 3) chimney(fx + fw - 0.45, fy + 0.06, h, 0.5, 0.12, mx + 3, my, t.pw);
     }
   }
 }
 function drawBld(fx, fy, ax, ay, t) {
-  const k = t.k, seed = ax * 131 + ay;
+  const k = t.k, seed = ax * 131 + ay, hit = [ax, ay];
   switch (k) {
     case 'power':
-      box(fx + 0.1, fy + 0.15, 1.8, 1.7, 1.1, '#5a5f66', 0, { win: [4, 1], seed, lit: true });
-      chimney(fx + 0.35, fy + 0.35, 1.1, 1.6, 0.3, ax, ay, true); chimney(fx + 0.85, fy + 0.35, 1.1, 1.6, 0.3, ax + 7, ay, true);
-      icon('⚡', fx + 1.15, fy + 1.3, 1.1, 1.6); break;
+      box(fx + 0.1, fy + 0.15, 1.8, 1.7, 0.9, '#5a5f66', 0, { win: [4, 1], seed, lit: true, hit });
+      chimney(fx + 0.35, fy + 0.35, 0.9, 1.1, 0.3, ax, ay, true); chimney(fx + 0.85, fy + 0.35, 0.9, 1.1, 0.3, ax + 7, ay, true);
+      icon('⚡', fx + 1.15, fy + 1.3, 0.9, 1.6); break;
     case 'water': {
       const g = P(fx + 0.5, fy + 0.5, 0); cx.fillStyle = 'rgba(0,0,0,.18)'; cx.beginPath(); cx.ellipse(g.x + hw * 0.15, g.y, hw * 0.45, hh * 0.45, 0, 0, 7); cx.fill();
       cx.strokeStyle = '#6b7a8a'; cx.lineWidth = Math.max(1, 2 * z);
-      for (const [u, v] of [[0.3, 0.3], [0.7, 0.3], [0.7, 0.7], [0.3, 0.7]]) { const a = P(fx + u, fy + v, 0), b = P(fx + u, fy + v, 1.1); cx.beginPath(); cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); cx.stroke(); }
+      for (const [u, v] of [[0.3, 0.3], [0.7, 0.3], [0.7, 0.7], [0.3, 0.7]]) { const a = P(fx + u, fy + v, 0), b = P(fx + u, fy + v, 0.8); cx.beginPath(); cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); cx.stroke(); }
       cx.lineWidth = 1;
-      box(fx + 0.2, fy + 0.2, 0.6, 0.6, 0.6, '#8fb3d9', 1.1, { shadow: false, top: '#b9d4ee' });
-      icon('💧', fx + 0.5, fy + 0.5, 1.45, 0.7); break;
+      box(fx + 0.2, fy + 0.2, 0.6, 0.6, 0.5, '#8fb3d9', 0.8, { shadow: false, top: '#b9d4ee', hit });
+      icon('💧', fx + 0.5, fy + 0.5, 1.05, 0.7); break;
     }
-    case 'police': box(fx + 0.1, fy + 0.1, 0.8, 0.8, 0.9, '#4a6fa5', 0, { win: [2, 2], seed }); icon('🚓', fx + 0.5, fy + 0.5, 0.95, 1); break;
-    case 'fire': box(fx + 0.1, fy + 0.1, 0.8, 0.8, 0.9, '#c0392b', 0, { win: [2, 2], seed }); icon('🚒', fx + 0.5, fy + 0.5, 0.95, 1); break;
+    case 'police': box(fx + 0.1, fy + 0.1, 0.8, 0.8, 0.75, '#4a6fa5', 0, { win: [2, 2], seed, hit }); icon('🚓', fx + 0.5, fy + 0.5, 0.8, 1); break;
+    case 'fire': box(fx + 0.1, fy + 0.1, 0.8, 0.8, 0.75, '#c0392b', 0, { win: [2, 2], seed, hit }); icon('🚒', fx + 0.5, fy + 0.5, 0.8, 1); break;
     case 'school': {
-      box(fx + 0.1, fy + 0.1, 1.8, 1.0, 0.9, '#d4a24c', 0, { win: [4, 2], seed });
-      const a = P(fx + 1.6, fy + 1.55, 0), b = P(fx + 1.6, fy + 1.55, 0.9); cx.strokeStyle = '#eee'; cx.lineWidth = Math.max(1, 1.5 * z); cx.beginPath(); cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); cx.stroke(); cx.lineWidth = 1;
+      box(fx + 0.1, fy + 0.1, 1.8, 1.0, 0.75, '#d4a24c', 0, { win: [4, 2], seed, hit });
+      const a = P(fx + 1.6, fy + 1.55, 0), b = P(fx + 1.6, fy + 1.55, 0.8); cx.strokeStyle = '#eee'; cx.lineWidth = Math.max(1, 1.5 * z); cx.beginPath(); cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); cx.stroke(); cx.lineWidth = 1;
       poly([b, { x: b.x + hw * 0.35, y: b.y + hz * 0.08 }, { x: b.x, y: b.y + hz * 0.18 }], '#e74c3c');
-      icon('🏫', fx + 1, fy + 0.6, 0.95, 1.4); break;
+      icon('🏫', fx + 1, fy + 0.6, 0.8, 1.4); break;
     }
     case 'hospital':
-      box(fx + 0.1, fy + 0.1, 1.8, 1.8, 1.4, '#f3f3f3', 0, { win: [4, 3], seed, top: '#e8ecef' });
-      lpoly(fx, fy, [[0.85, 0.4], [1.15, 0.4], [1.15, 1.6], [0.85, 1.6]], '#e53935', 1.4); lpoly(fx, fy, [[0.4, 0.85], [1.6, 0.85], [1.6, 1.15], [0.4, 1.15]], '#e53935', 1.4);
+      box(fx + 0.1, fy + 0.1, 1.8, 1.8, 1.0, '#f3f3f3', 0, { win: [4, 2], seed, top: '#e8ecef', hit });
+      lpoly(fx, fy, [[0.85, 0.4], [1.15, 0.4], [1.15, 1.6], [0.85, 1.6]], '#e53935', 1.0); lpoly(fx, fy, [[0.4, 0.85], [1.6, 0.85], [1.6, 1.15], [0.4, 1.15]], '#e53935', 1.0);
       break;
     case 'rubble':
-      box(fx + 0.1, fy + 0.1, 0.8, 0.8, 0.12, '#6e6259', 0, { shadow: false });
+      box(fx + 0.1, fy + 0.1, 0.8, 0.8, 0.12, '#6e6259', 0, { shadow: false, hit });
       for (let i = 0; i < 4; i++) box(fx + 0.15 + 0.55 * h01(ax, ay, 70 + i), fy + 0.15 + 0.55 * h01(ax, ay, 80 + i), 0.15, 0.12, 0.1 + 0.12 * h01(ax, ay, 90 + i), '#4a4039', 0.12, { shadow: false });
       break;
   }
 }
 function objH(t) {
-  if (t.k === 'R') return [0, 0.8, 1.25, 2.5][t.l]; if (t.k === 'C') return [0, 0.7, 1.4, 3.3][t.l]; if (t.k === 'I') return [0, 0.5, 1.9, 2.1][t.l];
-  return { power: 2.8, water: 1.9, police: 1, fire: 1, school: 1, hospital: 1.5, rubble: 0.3 }[t.k] || 0;
+  if (t.k === 'R') return [0, 0.75, 1.0, 1.7][t.l]; if (t.k === 'C') return [0, 0.6, 1.1, 2.1][t.l]; if (t.k === 'I') return [0, 0.45, 1.4, 1.5][t.l];
+  return { power: 2.1, water: 1.4, police: 0.85, fire: 0.85, school: 0.85, hospital: 1.1, rubble: 0.3 }[t.k] || 0;
 }
 function drawBadge(p, ic) {
   const r = Math.max(5, hw * 0.2), blink = (Math.floor(NOW / 600) % 2) === 0;
@@ -1226,6 +1285,8 @@ function render(now) {
   NOW = now; z = cam.z; hw = TW / 2 * z; hh = TH / 2 * z; hz = HU * z; ox = cw / 2 - cam.x * z; oy = ch / 2 - cam.y * z;
   cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.lineWidth = 1;
   cx.fillStyle = '#0e1820'; cx.fillRect(0, 0, cw, ch);
+  hits = [];
+  const want = (curTool.id !== 'hand' || paint) ? 1 : 0; xray += (want - xray) * 0.2; if (Math.abs(want - xray) < 0.02) xray = want;
   // visible tile range (view coords), with room below for tall buildings
   const cs = [[0, 0], [cw, 0], [0, ch + 4 * hz], [cw, ch + 4 * hz]].map(([sx, sy]) => screenToViewF(sx + cvRect.left, sy + cvRect.top));
   const vx0 = clamp(Math.floor(Math.min(...cs.map(c => c[0]))) - 1, 0, W - 1), vx1 = clamp(Math.ceil(Math.max(...cs.map(c => c[0]))) + 1, 0, W - 1);
@@ -1243,7 +1304,7 @@ function render(now) {
     else if (t.k === 'park') objs.push({ d: vx + vy, f: () => drawTrees(vx, vy, mx, my, true) });
     else if (isZone(t.k)) {
       if (t.l > 0) objs.push({ d: vx + vy, f: () => drawZoneBld(vx, vy, mx, my, t) });
-      if (!t.fire) { const b = !t.rd ? '🛣️' : !t.pw ? '⚡' : !t.wt ? '💧' : null; if (b) badges.push([vx + 0.5, vy + 0.5, objH(t) + 0.45, b]); }
+      if (!t.fire) { const b = !t.rd ? '🛣️' : !t.pw ? '⚡' : !t.wt ? '💧' : (t.l === 0 && t.d < 0.2) ? (cov.pol[idx(mx, my)] > 0.25 ? '🏭' : '😕') : (t.l === 0 && stats.dem[t.k] <= 0) ? '📉' : null; if (b) badges.push([vx + 0.5, vy + 0.5, objH(t) + 0.45, b]); }
     } else if (BLD[t.k]) {
       const key = idx(t.ax, t.ay);
       if (!pushed.has(key)) {
@@ -1259,7 +1320,9 @@ function render(now) {
   }
   // pass 2: raised objects back to front
   objs.sort((a, b) => a.d - b.d);
+  if (xray > 0) cx.globalAlpha = 1 - 0.62 * xray; // build mode: see the ground through buildings
   for (const o of objs) o.f();
+  cx.globalAlpha = 1;
   // pass 3: fire, badges, overlays
   for (const [vx, vy, t] of fires) {
     diamond(vx, vy, `rgba(255,120,0,${0.25 + 0.15 * Math.sin(NOW / 90 + vx)})`);
@@ -1275,10 +1338,17 @@ function render(now) {
     cx.lineWidth = Math.max(1, 1.5 * z);
     for (const [x, y, ok] of paint.marks) { const [vx, vy] = toView(x, y); diamond(vx, vy, ok ? 'rgba(90,230,130,.45)' : 'rgba(255,80,80,.45)', 0, ok ? '#8dffb0' : '#ff8080'); }
     cx.lineWidth = 1;
-  } else if (hover && curTool.id !== 'hand' && inb(hover.x, hover.y)) {
-    const sz = BLD[curTool.id] ? BLD[curTool.id].size : 1, ok = canPlace(curTool, hover.x, hover.y);
-    const [fx, fy] = sz > 1 && inb(hover.x + sz - 1, hover.y + sz - 1) ? viewFootprint(hover.x, hover.y, sz) : toView(hover.x, hover.y);
-    cx.lineWidth = 2; poly([P(fx, fy), P(fx + sz, fy), P(fx + sz, fy + sz), P(fx, fy + sz)], ok ? 'rgba(90,230,130,.35)' : 'rgba(255,80,80,.35)', ok ? '#8dffb0' : '#ff8080'); cx.lineWidth = 1;
+  } else {
+    const gh = pending || (hover && curTool.id !== 'hand' && inb(hover.x, hover.y) ? hover : null);
+    if (gh) {
+      const sz = BLD[curTool.id] ? BLD[curTool.id].size : 1, ok = canPlace(curTool, gh.x, gh.y);
+      const [fx, fy] = sz > 1 && inb(gh.x + sz - 1, gh.y + sz - 1) ? viewFootprint(gh.x, gh.y, sz) : toView(gh.x, gh.y);
+      const pulse = pending ? 0.3 + 0.15 * Math.sin(NOW / 250) : 0.35;
+      cx.lineWidth = 2; poly([P(fx, fy), P(fx + sz, fy), P(fx + sz, fy + sz), P(fx, fy + sz)], ok ? `rgba(90,230,130,${pulse})` : `rgba(255,80,80,${pulse})`, ok ? '#8dffb0' : '#ff8080'); cx.lineWidth = 1;
+      if (pending && BLD[curTool.id]) { // ghost volume so the player sees the building's size
+        cx.globalAlpha = 0.45; box(fx + 0.1, fy + 0.1, sz - 0.2, sz - 0.2, { power: 0.9, water: 1.3, police: 0.75, fire: 0.75, school: 0.75, hospital: 1.0, park: 0.05 }[curTool.id] || 0.5, ok ? '#8dffb0' : '#ff8080', 0, { shadow: false }); cx.globalAlpha = 1;
+      }
+    }
   }
   if (infoTile) { const [vx, vy] = toView(infoTile.x, infoTile.y); cx.lineWidth = 2; cx.setLineDash([4, 3]); diamond(vx, vy, null, 0, '#fff'); cx.setLineDash([]); cx.lineWidth = 1; }
 }
@@ -1304,7 +1374,7 @@ resize();
 if (!load()) { newGame(); save(); }
 else toast(`👋 다시 오셨군요, 시장님. ${dateStr()} · 인구 ${fmt(stats.pop)}명`, 'good');
 requestAnimationFrame(frame);
-if (location.search.includes('debug')) window.__city = { get tiles() { return tiles; }, stats, cov, get money() { return money; }, set money(v) { money = v; }, get month() { return month; }, tick, get cam() { return cam; }, centerOn, rotateView };
+if (location.search.includes('debug')) window.__city = { get tiles() { return tiles; }, stats, cov, get money() { return money; }, set money(v) { money = v; }, get month() { return month; }, tick, get cam() { return cam; }, centerOn, rotateView, tileAt, get gest() { return gest; }, toScreen: (mx, my, h = 0) => { const [vx, vy] = toViewF(mx + 0.5, my + 0.5); return P(vx, vy, h); }, objH };
 })();
 </script>
 </body>
